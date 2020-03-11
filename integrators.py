@@ -128,7 +128,7 @@ def ConstraintIntegrator(face1, face2, c):
 	s21 = face2.el1.CalcShape(xi1)
 	s22 = face2.el2.CalcShape(xi2) 
 	jump = np.concatenate((s21, -s22))
-	return np.outer(avg, jump) 
+	return np.outer(avg, jump) * c * face1.nor
 
 def DomainIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)
@@ -244,6 +244,29 @@ def MixFaceAssemble(space1, space2, integrator, c):
 
 	A = sp.coo_matrix((data, (row, col)), shape=(space1.Nu, space2.Nu))
 	return A.tocsc() 
+
+def MixFaceAssembleBdr(space1, space2, integrator, c):
+	row = []
+	col = [] 
+	data = [] 
+
+	for f in range(len(space1.bface)):
+		face1 = space1.bface[f]
+		face2 = space2.bface[f]
+		elmat = integrator(face1, face2, c)
+		dof1 = space1.dofs[face1.el1.ElNo] 
+		dof2 = space2.dofs[face2.el1.ElNo]
+		for i in range(len(dof1)):
+			for j in range(len(dof2)):
+				row.append(dof1[i])
+				col.append(dof2[j])
+				data.append(elmat[i,j])
+
+	A = sp.coo_matrix((data, (row, col)), shape=(space1.Nu, space2.Nu))
+	return A.tocsc()
+
+def MixFaceAssembleAll(space1, space2, integrator, c):
+	return MixFaceAssemble(space1, space2, integrator, c) + MixFaceAssembleBdr(space1, space2, integrator, c)
 
 def BdrFaceAssembleRHS(space, integrator, c):
 	b = np.zeros(space.Nu)
