@@ -102,33 +102,38 @@ def SolveHybDiffusion(Ne, p):
 	h1 = L2Space(xe, lob) 
 	mspace = H1Space(xe, mcol) 
 
+	Tex = lambda x: np.sin(3*np.pi*x)
+	F = lambda x: 9*np.pi**2*np.sin(3*np.pi*x)
 	qorder = max(2, 2*p+1)
 	M = Assemble(h1, MassIntegrator, lambda x: -1, qorder)
 	D = MixAssemble(l2, h1, MixDivIntegrator, 1, qorder)
-	C = MixFaceAssemble(mspace, h1, ConstraintIntegrator, 1)
-	f = AssembleRHS(l2, DomainIntegrator, lambda x: -np.pi**2*np.sin(np.pi*x), qorder) 
+	C = MixFaceAssemble(mspace, h1, ConstraintIntegrator, -1)
+	f = AssembleRHS(l2, DomainIntegrator, F, qorder) 
 
 	Minv = spla.inv(M)
-	DMinvDT = D*Minv*D.transpose()
-	DMinvDTinv = spla.inv(DMinvDT)
-	CMinvDT = C*Minv*D.transpose()
-	R = CMinvDT*DMinvDTinv*CMinvDT.transpose() - C*Minv*C.transpose()
-	rhs = -CMinvDT*DMinvDTinv*f 
+	A = D*Minv*D.transpose()
+	Ainv = spla.inv(A) 
+	R = C*(Minv*D.transpose()*Ainv*D*Minv - Minv)*C.transpose()
+	rhs = -C*Minv*D.transpose()*Ainv*f 
 	R = R.tolil()
-	R[0,:] = 0 
 	R[0,0] = 1 
-	R[-1,:] = 0 
 	R[-1,-1] = 1 
 	rhs[0] = 0 
 	rhs[-1] = 0 
 
-	lam = spla.spsolve(R.tocsc(), rhs) 	
+	lam = GridFunction(mspace)
+	# lam = spla.spsolve(R.tocsc(), rhs)
+	lam.data, info = spla.cg(R.tocsc(), rhs, tol=1e-10) 
+	res = np.linalg.norm(R*lam - rhs)
+	if (res > 1e-10):
+		print(colored('cg not converged. final tol = {:.3e}'.format(res), 'red'))
 
 	T = GridFunction(l2)
-	T.data = DMinvDTinv*(f + D*Minv*C.transpose()*lam)
+	T.data = -Ainv*(f + D*Minv*C.transpose()*lam)
 
-	err = T.L2ProjError(lambda x: np.sin(np.pi*x), 2*p+1)
-	return err 
+	err = T.L2ProjError(Tex, 2*p+1)
+	merr = np.max(np.fabs(Tex(mspace.x) - lam.data))
+	return err, merr 
 
 Ne = 4
 print('h1 diffusion:')
@@ -162,13 +167,13 @@ for p in range(0, 6):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
 
-Ne = 3
+Ne = 10
 print('Hyb Diffusion:')
 for p in range(0, 6):
-	E1 = SolveHybDiffusion(Ne, p)
-	E2 = SolveHybDiffusion(2*Ne, p)
+	E1, mE1 = SolveHybDiffusion(Ne, p)
+	E2, mE2 = SolveHybDiffusion(2*Ne, p)
 	ooa = np.log(E1/E2)/np.log(2)
 	color = 'green'
 	if (abs(ooa-p-2) > .1):
 		color = 'red'
-	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+	print(colored('   p={}, ooa={:.3f}, m1={:.3e}, m2={:.3e}'.format(p, ooa, mE1, mE2), color))
