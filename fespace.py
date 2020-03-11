@@ -133,6 +133,9 @@ class GridFunction:
 
 		return np.sqrt(l2) 
 
+	def __rmul__(self, A):
+		return A*self.data 
+
 if __name__=='__main__':
 	Ne = 2
 	p = 5	
