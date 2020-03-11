@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from integrators import * 
+from sn import * 
+from qdf import * 
+
+def SolveH1Diffusion(Ne, p):
+	xe = np.linspace(0, 1, Ne+1)
+	basis = LagrangeBasis(p) 
+	space = H1Space(xe, basis) 
+	K = Assemble(space, WeakPoissonIntegrator, lambda x: 1, 2*p-1).tolil()
+	b = AssembleRHS(space, DomainIntegrator, lambda x: np.pi**2*np.sin(np.pi*x), 2*p+1) 
+	K[0,:] = 0 
+	K[0,0] = 1 
+	K[-1,:] = 0 
+	K[-1,-1] = 1 
+	b[0] = b[-1] = 0 
+	phi = GridFunction(space) 
+	phi.data = spla.spsolve(K.tocsc(), b) 
+	ex = lambda x: np.sin(np.pi*x) 
+	err = phi.L2Error(ex, 2*p+1) 
+
+	return err 
+
+def SolveSn(Ne, p):
+	N = 8
+	basis = LegendreBasis(p)
+	xe = np.linspace(0,1,Ne+1)
+	space = L2Space(xe, basis) 
+	psi = TVector(space, N) 
+	sigma_t = lambda x: 1 
+	sigma_s = lambda x: .9
+	Q = lambda x, mu: (mu*np.pi*np.cos(np.pi*x) + (sigma_t(x)-sigma_s(x))*np.sin(np.pi*x))/2
+	psi_in = lambda x, mu: 0 
+	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in, False)
+	sn = Sn(sweep) 
+	phi = sn.SourceIteration(psi, tol=1e-12)
+	phi_ex = lambda x: np.sin(np.pi*x) 
+	return phi.L2Error(phi_ex, 2*p+1)
+
+def SolveVEF(Ne, p):
+	N = 8 
+	leg = LegendreBasis(p)
+	leg2 = LegendreBasis(p+1)
+	lob = LobattoBasis(p+1) 
+	xe = np.linspace(0,1,Ne+1)
+	space = L2Space(xe, leg2)
+	phi_space = L2Space(xe, leg)
+	J_space = H1Space(xe, lob) 
+	psi = TVector(space, N)
+	alpha = 1 
+	beta = .1
+	gamma = 1 
+	delta = 1
+	psi.Project(lambda x, mu: .5*(alpha*np.sin(np.pi*x) 
+		+ beta*mu*np.sin(2*np.pi*x) + gamma*mu**2*np.sin(3*np.pi*x) + delta))
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*x) + beta*mu*np.sin(2*np.pi*x) + gamma*mu**2*np.sin(3*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*x) + gamma/3*np.sin(3*np.pi*x) + delta 
+	qdf = QDFactors(space, N, psi_ex) 
+	qdf.Compute(psi) 
+	sigma_t = lambda x: 1 
+	sigma_s = lambda x: .1
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi*np.cos(np.pi*x) + beta*mu**2*2*np.pi*np.cos(2*np.pi*x) 
+		+ gamma*mu**3*3*np.pi*np.cos(3*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	Q0 = np.zeros(phi_space.Nu)
+	Q1 = np.zeros(J_space.Nu)
+	mu, w = quadrature.Get(N)
+	for a in range(N):
+		Q0 += w[a] * AssembleRHS(phi_space, DomainIntegrator, lambda x: Q(x,mu[a]), 2*p+1)
+		Q1 += mu[a] * w[a] * AssembleRHS(J_space, DomainIntegrator, lambda x: Q(x,mu[a]), 2*p+1) 
+
+	qin = BdrFaceAssembleRHS(J_space, VEFInflowIntegrator, qdf) 
+	Q1 += qin 
+
+	Mt = Assemble(J_space, MassIntegrator, sigma_t, 2*p+1)
+	B = BdrFaceAssemble(J_space, MLBdrIntegrator, qdf)
+	Ma = Assemble(phi_space, MassIntegrator, sigma_a, 2*p+1)
+	G = MixAssemble(J_space, phi_space, MixWeakEddDivIntegrator, qdf, 2*p+1)
+	D = MixAssemble(phi_space, J_space, MixDivIntegrator, 1, 2*p+1) 
+
+	A = sp.bmat([[Mt+B, G], [D, Ma]]).tocsc()
+	rhs = np.concatenate((Q1, Q0))
+
+	x = spla.spsolve(A, rhs) 
+	phi = GridFunction(phi_space)
+	phi.data = x[J_space.Nu:]
+
+	err = phi.L2ProjError(phi_ex, 2*p+1)
+	return err 
+
+def SolveHybDiffusion(Ne, p):
+	xe = np.linspace(0,1,Ne+1)
+	leg = LegendreBasis(p)
+	lob = LobattoBasis(p+1)
+	mcol = LagrangeBasis(1)
+	l2 = L2Space(xe, leg)
+	h1 = L2Space(xe, lob) 
+	mspace = H1Space(xe, mcol) 
+
+	qorder = max(2, 2*p+1)
+	M = Assemble(h1, MassIntegrator, lambda x: -1, qorder)
+	D = MixAssemble(l2, h1, MixDivIntegrator, 1, qorder)
+	C = MixFaceAssemble(mspace, h1, ConstraintIntegrator, 1)
+	f = AssembleRHS(l2, DomainIntegrator, lambda x: -np.pi**2*np.sin(np.pi*x), qorder) 
+
+	Minv = spla.inv(M)
+	DMinvDT = D*Minv*D.transpose()
+	DMinvDTinv = spla.inv(DMinvDT)
+	CMinvDT = C*Minv*D.transpose()
+	R = CMinvDT*DMinvDTinv*CMinvDT.transpose() - C*Minv*C.transpose()
+	rhs = -CMinvDT*DMinvDTinv*f 
+	R = R.tolil()
+	R[0,:] = 0 
+	R[0,0] = 1 
+	R[-1,:] = 0 
+	R[-1,-1] = 1 
+	rhs[0] = 0 
+	rhs[-1] = 0 
+
+	lam = spla.spsolve(R.tocsc(), rhs) 	
+
+	T = GridFunction(l2)
+	T.data = DMinvDTinv*(f + D*Minv*C.transpose()*lam)
+
+	err = T.L2ProjError(lambda x: np.sin(np.pi*x), 2*p+1)
+	return err 
+
+Ne = 4
+print('h1 diffusion:')
+for p in range(1, 6):
+	E1 = SolveH1Diffusion(Ne, p)
+	E2 = SolveH1Diffusion(2*Ne, p)
+	ooa = np.log(E1/E2)/np.log(2)
+	color = 'green'
+	if (abs(ooa-p-1) > .1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+
+print('Sn:')
+for p in range(1, 6):
+	E1 = SolveSn(Ne, p)
+	E2 = SolveSn(2*Ne, p)
+	ooa = np.log(E1/E2)/np.log(2)
+	color = 'green'
+	if (abs(ooa-p-1) > .1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+
+Ne = 10
+print('VEF:')
+for p in range(0, 6):
+	E1 = SolveVEF(Ne, p)
+	E2 = SolveVEF(2*Ne, p)
+	ooa = np.log(E1/E2)/np.log(2)
+	color = 'green'
+	if (abs(ooa-p-2) > .1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+
+Ne = 3
+print('Hyb Diffusion:')
+for p in range(0, 6):
+	E1 = SolveHybDiffusion(Ne, p)
+	E2 = SolveHybDiffusion(2*Ne, p)
+	ooa = np.log(E1/E2)/np.log(2)
+	color = 'green'
+	if (abs(ooa-p-2) > .1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
