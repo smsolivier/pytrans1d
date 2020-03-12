@@ -8,6 +8,25 @@ from fespace import *
 import scipy.sparse as sp 
 import scipy.sparse.linalg as spla 
 
+class COOBuilder:
+	def __init__(self, m, n):
+		self.m = m 
+		self.n = n
+		self.row = [] 
+		self.col = [] 
+		self.data = []
+
+	def __setitem__(self, key, item):
+		for i in range(len(key[0])):
+			for j in range(len(key[1])):
+				if (abs(item[i,j])>1e-15):
+					self.row.append(key[0][i])
+					self.col.append(key[1][j])
+					self.data.append(item[i,j])
+
+	def Get(self):
+		return sp.coo_matrix((self.data, (self.row, self.col)), (self.m, self.n)).tocsc()
+
 def MassIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el.Nn, el.Nn))
@@ -166,39 +185,20 @@ def DomainIntegrator(el, c, qorder):
 	return elvec 
 
 def Assemble(space, integrator, c, qorder):
-	row = [] 
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space.Nu, space.Nu)
 	for e in range(space.Ne):
-		el = space.el[e] 
-		elmat = integrator(el, c, qorder)
-		for i in range(elmat.shape[0]):
-			for j in range(elmat.shape[1]):
-				row.append(space.dofs[e][i])
-				col.append(space.dofs[e][j])
-				data.append(elmat[i,j]) 
+		elmat = integrator(space.el[e], c, qorder)
+		coo[space.dofs[e], space.dofs[e]] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space.Nu, space.Nu))
-	return A.tocsc()
+	return coo.Get()
 
 def MixAssemble(space1, space2, integrator, c, qorder):
-	row = [] 
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space1.Nu, space2.Nu)
 	for e in range(space1.Ne):
-		el1 = space1.el[e]
-		el2 = space2.el[e] 
-		elmat = integrator(el1, el2, c, qorder)
-		for i in range(elmat.shape[0]):
-			for j in range(elmat.shape[1]):
-				row.append(space1.dofs[e][i])
-				col.append(space2.dofs[e][j])
-				data.append(elmat[i,j]) 
+		elmat = integrator(space1.el[e], space2.el[e], c, qorder)
+		coo[space1.dofs[e], space2.dofs[e]] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space1.Nu, space2.Nu))
-	return A.tocsc() 
+	return coo.Get()
 
 def AssembleRHS(space, integrator, c, qorder):
 	b = np.zeros(space.Nu)
@@ -210,85 +210,50 @@ def AssembleRHS(space, integrator, c, qorder):
 	return b
 
 def FaceAssemble(space, integrator, c):
-	row = [] 
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space.Nu, space.Nu)
 	for face_t in space.iface:
 		elmat = integrator(face_t, c) 
 		dof1 = space.dofs[face_t.el1.ElNo]
 		dof2 = space.dofs[face_t.el2.ElNo] 
 		dof = np.concatenate((dof1, dof2)) 
-		assert(len(dof)==elmat.shape[0])
-		for i in range(len(dof)):
-			for j in range(len(dof)):
-				if (abs(elmat[i,j])>1e-15):
-					row.append(dof[i])
-					col.append(dof[j])
-					data.append(elmat[i,j]) 
+		coo[dof, dof] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space.Nu, space.Nu))
-	return A.tocsc() 
+	return coo.Get()
 
 def BdrFaceAssemble(space, integrator, c):
-	row = [] 
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space.Nu, space.Nu)
 	for face_t in space.bface:
 		elmat = integrator(face_t, c) 
 		dof1 = space.dofs[face_t.el1.ElNo]
 		dof2 = space.dofs[face_t.el2.ElNo] 
-		for i in range(len(dof1)):
-			for j in range(len(dof2)):
-				if (abs(elmat[i,j])>1e-15):
-					row.append(dof1[i])
-					col.append(dof2[j])
-					data.append(elmat[i,j]) 
+		coo[dof1, dof2] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space.Nu, space.Nu))
-	return A.tocsc() 
+	return coo.Get()
 
 def MixFaceAssemble(space1, space2, integrator, c):
-	row = [] 
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space1.Nu, space2.Nu)
 	for f in range(len(space1.iface)):
 		face1 = space1.iface[f]
 		face2 = space2.iface[f]
 		elmat = integrator(face1, face2, c)
 		dof1 = np.concatenate((space1.dofs[face1.el1.ElNo], space1.dofs[face1.el2.ElNo]))
 		dof2 = np.concatenate((space2.dofs[face2.el1.ElNo], space2.dofs[face2.el2.ElNo]))
-		for i in range(len(dof1)):
-			for j in range(len(dof2)):
-				row.append(dof1[i])
-				col.append(dof2[j])
-				data.append(elmat[i,j]) 
+		coo[dof1, dof2] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space1.Nu, space2.Nu))
-	return A.tocsc() 
+	return coo.Get()
 
 def MixFaceAssembleBdr(space1, space2, integrator, c):
-	row = []
-	col = [] 
-	data = [] 
-
+	coo = COOBuilder(space1.Nu, space2.Nu)
 	for f in range(len(space1.bface)):
 		face1 = space1.bface[f]
 		face2 = space2.bface[f]
 		elmat = integrator(face1, face2, c)
 		dof1 = space1.dofs[face1.el1.ElNo] 
 		dof2 = space2.dofs[face2.el1.ElNo]
-		for i in range(len(dof1)):
-			for j in range(len(dof2)):
-				row.append(dof1[i])
-				col.append(dof2[j])
-				data.append(elmat[i,j])
+		coo[dof1, dof2] = elmat 
 
-	A = sp.coo_matrix((data, (row, col)), shape=(space1.Nu, space2.Nu))
-	return A.tocsc()
-
+	return coo.Get()
+	
 def MixFaceAssembleAll(space1, space2, integrator, c):
 	return MixFaceAssemble(space1, space2, integrator, c) + MixFaceAssembleBdr(space1, space2, integrator, c)
 
