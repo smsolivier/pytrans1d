@@ -9,9 +9,11 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla 
 
 class COOBuilder:
-	def __init__(self, m, n):
+	def __init__(self, m, n=None):
 		self.m = m 
 		self.n = n
+		if (n==None):
+			self.n = self.m
 		self.row = [] 
 		self.col = [] 
 		self.data = []
@@ -253,7 +255,7 @@ def MixFaceAssembleBdr(space1, space2, integrator, c):
 		coo[dof1, dof2] = elmat 
 
 	return coo.Get()
-	
+
 def MixFaceAssembleAll(space1, space2, integrator, c):
 	return MixFaceAssemble(space1, space2, integrator, c) + MixFaceAssembleBdr(space1, space2, integrator, c)
 
