@@ -17,10 +17,10 @@ class AbstractVEF(Sn):
 
 		p = J_space.basis.p
 		self.p = p 
-		sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x)
+		self.sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x)
 		self.Mt = Assemble(self.J_space, MassIntegrator, sweeper.sigma_t, 2*p+1)
 		self.Mtl = Assemble(self.J_space, MassIntegratorLumped, sweeper.sigma_t, 2*p+1)
-		self.Ma = Assemble(self.phi_space, MassIntegrator, sigma_a, 2*p+1)
+		self.Ma = Assemble(self.phi_space, MassIntegrator, self.sigma_a, 2*p+1)
 		self.D = MixAssemble(self.phi_space, self.J_space, MixDivIntegrator, 1, 2*p+1) 
 
 		self.Q0 = np.zeros(phi_space.Nu)
@@ -139,21 +139,11 @@ class VEFH(AbstractVEF):
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
-		B = BdrFaceAssemble(self.J_space, MLBdrIntegrator, self.qdf)
-		G = MixAssemble(self.J_space, self.phi_space, MixWeakEddDivIntegrator, self.qdf, 2*self.p+1)
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf)
 		C1 = MixFaceAssemble(self.J_space, self.m_space, EddConstraintIntegrator, self.qdf)
-
-		Mt = self.Mt + B
 		Q1 = self.Q1 + qin 
 
-		Mtinv = spla.inv(Mt)
-		S = self.Ma - self.D*Mtinv*G 
-		Sinv = spla.inv(S)
-
-		W = Mtinv + Mtinv*G*Sinv*self.D*Mtinv 
-		X = -Mtinv*G*Sinv 
-		Y = -Sinv*self.D*Mtinv 
+		W, X, Y, Z = self.FormBlockInv()
 
 		R = self.C2*W*C1 
 		rhs = self.C2*W*Q1 + self.C2*X*self.Q0
@@ -181,9 +171,45 @@ class VEFH(AbstractVEF):
 			lam.data = self.lin_solver.Solve(R.tocsr(), rhs)
 
 		phi = GridFunction(self.phi_space)
-		phi.data = Y*Q1 - Y*C1*lam + Sinv*self.Q0
+		phi.data = Y*Q1 - Y*C1*lam + Z*self.Q0
 
 		return phi 
+
+	def FormBlockInv(self):
+		W = COOBuilder(self.J_space.Nu)
+		X = COOBuilder(self.J_space.Nu, self.phi_space.Nu)
+		Y = COOBuilder(self.phi_space.Nu, self.J_space.Nu)
+		Z = COOBuilder(self.phi_space.Nu)
+
+		for e in range(self.phi_space.Ne):
+			phi_el = self.phi_space.el[e]
+			J_el = self.J_space.el[e] 
+
+			Ma = MassIntegrator(phi_el, self.sigma_a, 2*self.p+1)
+			D = MixDivIntegrator(phi_el, J_el, 1, 2*self.p+1)
+			Mt = MassIntegrator(J_el, self.sweeper.sigma_t, 2*self.p+1)
+			if (phi_el.ElNo==0):
+				B = MLBdrIntegrator(self.J_space.bface[0], self.qdf)
+				Mt += B
+			elif (phi_el.ElNo==self.phi_space.Ne-1):
+				B = MLBdrIntegrator(self.J_space.bface[-1], self.qdf)
+				Mt += B
+			Mtinv = np.linalg.inv(Mt)
+			G = MixWeakEddDivIntegrator(J_el, phi_el, self.qdf, 2*self.p+1)
+
+			S = Ma - np.linalg.multi_dot([D, Mtinv, G])
+			Sinv = np.linalg.inv(S)
+			w = Mtinv + np.linalg.multi_dot([Mtinv, G, Sinv, D, Mtinv])
+			x = -np.linalg.multi_dot([Mtinv, G, Sinv])
+			y = -np.linalg.multi_dot([Sinv, D, Mtinv])
+			z = Sinv.copy() 
+
+			W[self.J_space.dofs[e], self.J_space.dofs[e]] = w 
+			X[self.J_space.dofs[e], self.phi_space.dofs[e]] = x
+			Y[self.phi_space.dofs[e], self.J_space.dofs[e]] = y
+			Z[self.phi_space.dofs[e], self.phi_space.dofs[e]] = z 
+
+		return W.Get(), X.Get(), Y.Get(), Z.Get()
 
 if __name__=='__main__':
 	Ne = 10
@@ -209,9 +235,9 @@ if __name__=='__main__':
 	inner = 1
 	maxiter = 50
 	gs = GaussSeidel(ltol, 2, True)
-	# block = BlockLDU(ltol, maxiter, inner, True)
+	block = BlockLDU(ltol, maxiter, inner, False)
 	# block = BlockLDURelax(ltol, maxiter, gs, inner, False)
-	block = BlockTri(ltol, maxiter, inner, False)
+	# block = BlockTri(ltol, maxiter, inner, False)
 	# block = BlockDiag(ltol, maxiter, inner, False)
 	vef = VEF(phi_space, J_space, sweep, block)
 	amg = AMGSolver(ltol, maxiter, inner, False)
