@@ -35,7 +35,8 @@ class Quadrature:
 	def Get(self, p):
 		return self.leg_ip[p-1], self.leg_w[p-1]
 
-	def GetLumped(self, basis):
+	def GetLumped(self, el):
+		basis = el.basis
 		if (isinstance(basis, LegendreBasis)):
 			return self.leg_ip[basis.p], self.leg_w[basis.p]
 		elif (isinstance(basis, LobattoBasis)):
