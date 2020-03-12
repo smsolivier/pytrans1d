@@ -101,11 +101,12 @@ class VEFH(AbstractVEF):
 		basis = LagrangeBasis(1)
 		self.m_space = H1Space(self.phi_space.xe, basis) 
 		self.C2 = MixFaceAssemble(self.m_space, self.J_space, ConstraintIntegrator, 1) 
+		self.edd_constraint = UpwEddConstraintIntegrator
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf)
-		C1 = MixFaceAssemble(self.J_space, self.m_space, UpwEddConstraintIntegrator, self.qdf)
+		C1 = MixFaceAssemble(self.J_space, self.m_space, self.edd_constraint, self.qdf)
 		Q1 = self.Q1 + qin 
 
 		W, X, Y, Z = self.FormBlockInv()
