@@ -248,13 +248,13 @@ def SolveVEFSn(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False, phi_space)
+	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False)
 	amg = AMGSolver(1e-12, 100, 1)
-	vef = VEFH(phi_space, J_space, sweep, amg)
+	vef = VEFH(phi_space, J_space, sweep, amg, True)
 	psi = TVector(tspace, N)
 	phi = vef.SourceIteration(psi)
 
-	err = phi.L2ProjError(phi_ex, 2*p+1)
+	err = phi.L2Error(phi_ex, 2*p+1)
 	return err 
 
 Ne = 4

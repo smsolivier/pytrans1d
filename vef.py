@@ -94,14 +94,22 @@ class VEF(AbstractVEF):
 		return phi 
 
 class VEFH(AbstractVEF):
-	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
+	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
 		if (isinstance(J_space, H1Space)):
 			J_space = L2Space(J_space.xe, J_space.basis)
-		AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver) 
+		if (pp):
+			self.low_space = phi_space 
+			AbstractVEF.__init__(self, self.low_space, J_space, sweeper, lin_solver)
+			new_basis = type(phi_space.basis)(phi_space.basis.p+1)
+			self.phi_space = type(phi_space)(phi_space.xe, new_basis)
+		else:
+			AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver) 
+			self.low_space = phi_space 
 		basis = LagrangeBasis(1)
 		self.m_space = H1Space(self.phi_space.xe, basis) 
 		self.C2 = MixFaceAssemble(self.m_space, self.J_space, ConstraintIntegrator, 1) 
 		self.edd_constraint = UpwEddConstraintIntegrator
+		self.pp = pp
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
@@ -136,19 +144,48 @@ class VEFH(AbstractVEF):
 		else:
 			lam.data = self.lin_solver.Solve(R.tocsr(), rhs)
 
-		phi = GridFunction(self.phi_space)
+		phi = GridFunction(self.low_space)
 		phi.data = Y*Q1 - Y*C1*lam + Z*self.Q0
 
-		return phi 
+		if (self.pp):
+			phi_star = GridFunction(self.phi_space)
+			for e in range(self.phi_space.Ne):
+				el = self.phi_space.el[e]
+				s1 = el.CalcShape(-1)
+				s2 = el.CalcShape(1)
+
+				M1 = np.vstack((s1, s2))
+				b1 = lam.GetDof(e)
+
+				p = self.low_space.basis.p 
+				if (p>0):
+					basis = LegendreBasis(self.phi_space.basis.p-2)
+					el2 = Element(basis, el.line) 
+					M2 = MixMassIntegrator(el2, el, lambda x: 1, 2*p+1)
+					mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, 2*p+1)
+					b2 = np.dot(mixmass, phi.GetDof(e))
+
+					A = np.vstack((M1, M2))
+					b = np.concatenate((b1, b2))
+
+					local = np.linalg.solve(A, b) 
+					phi_star.SetDof(e, local) 
+				else:
+					local = np.linalg.solve(M1, b1)
+					phi_star.SetDof(e, local)
+
+			return phi_star
+		else:
+			return phi 
 
 	def FormBlockInv(self):
 		W = COOBuilder(self.J_space.Nu)
-		X = COOBuilder(self.J_space.Nu, self.phi_space.Nu)
-		Y = COOBuilder(self.phi_space.Nu, self.J_space.Nu)
-		Z = COOBuilder(self.phi_space.Nu)
+		X = COOBuilder(self.J_space.Nu, self.low_space.Nu)
+		Y = COOBuilder(self.low_space.Nu, self.J_space.Nu)
+		Z = COOBuilder(self.low_space.Nu)
 
-		for e in range(self.phi_space.Ne):
-			phi_el = self.phi_space.el[e]
+		for e in range(self.low_space.Ne):
+			phi_el = self.low_space.el[e]
 			J_el = self.J_space.el[e] 
 
 			Ma = MassIntegrator(phi_el, self.sigma_a, 2*self.p+1)
@@ -157,7 +194,7 @@ class VEFH(AbstractVEF):
 			if (phi_el.ElNo==0):
 				B = MLBdrIntegrator(self.J_space.bface[0], self.qdf)
 				Mt += B
-			elif (phi_el.ElNo==self.phi_space.Ne-1):
+			elif (phi_el.ElNo==self.low_space.Ne-1):
 				B = MLBdrIntegrator(self.J_space.bface[-1], self.qdf)
 				Mt += B
 			Mtinv = np.linalg.inv(Mt)
@@ -171,9 +208,9 @@ class VEFH(AbstractVEF):
 			z = Sinv.copy() 
 
 			W[self.J_space.dofs[e], self.J_space.dofs[e]] = w 
-			X[self.J_space.dofs[e], self.phi_space.dofs[e]] = x
-			Y[self.phi_space.dofs[e], self.J_space.dofs[e]] = y
-			Z[self.phi_space.dofs[e], self.phi_space.dofs[e]] = z 
+			X[self.J_space.dofs[e], self.low_space.dofs[e]] = x
+			Y[self.low_space.dofs[e], self.J_space.dofs[e]] = y
+			Z[self.low_space.dofs[e], self.low_space.dofs[e]] = z 
 
 		return W.Get(), X.Get(), Y.Get(), Z.Get()
 

@@ -7,7 +7,7 @@ from quadrature import quadrature
 from integrators import * 
 
 class AbstractSweeper:
-	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True, scatter_space=None):
+	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True):
 		self.space = space 
 		self.N = N 
 		self.mu, self.w = quadrature.Get(self.N) 
@@ -16,22 +16,21 @@ class AbstractSweeper:
 		self.Q = Q 
 		self.psi_in = psi_in 
 		self.LOUD = LOUD 
-		self.scatter_space = scatter_space
-		if (scatter_space==None):
-			self.scatter_space = self.space 
 
 	def FormScattering(self, phi):
 		scat = GridFunction(self.space)
+		if (self.Ms.shape[1]!=phi.space.Nu):
+			self.Ms = MixAssemble(self.space, phi.space, MixMassIntegrator, self.sigma_s, 2*self.space.basis.p+1)
 		scat.data = self.Ms * phi.data * .5 
 		return scat 
 
 class DirectSweeper(AbstractSweeper):
-	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True, scatter_space=None):
-		AbstractSweeper.__init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD, scatter_space)
+	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True):
+		AbstractSweeper.__init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD)
 
 		p = self.space.basis.p
 		self.Mt = Assemble(self.space, MassIntegrator, self.sigma_t, 2*p+1)
-		self.Ms = MixAssemble(self.space, self.scatter_space, MixMassIntegrator, self.sigma_s, 2*p+1)
+		self.Ms = Assemble(self.space, MassIntegrator, self.sigma_s, 2*p+1)
 		G = Assemble(self.space, WeakConvectionIntegrator, 1, 2*p+1)
 		self.LHS = [] 
 		self.lu = [] 
