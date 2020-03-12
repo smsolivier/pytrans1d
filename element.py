@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from basis import * 
+from pypv import PolyVal
 
 class Element:
 	def __init__(self, basis, line, elno=-1):
@@ -16,10 +17,10 @@ class Element:
 		self.nodes = self.Transform(basis.ip) 
 
 	def CalcShape(self, xi):
-		return np.polyval(self.basis.B, xi) 
+		return PolyVal(self.basis.B, xi)
 
 	def CalcGradShape(self, xi):
-		return np.polyval(self.basis.dB, xi) 
+		return PolyVal(self.basis.dB, xi)
 
 	def CalcPhysGradShape(self, xi):
 		return self.CalcGradShape(xi)/self.J 
