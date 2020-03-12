@@ -85,43 +85,8 @@ class VEF(AbstractVEF):
 			x = spla.spsolve(A, rhs) 
 
 		else:
-			Ainv = spla.inv(self.Mtl + B)
+			Ainv = sp.diags(1/(self.Mtl + B).diagonal())
 			x = self.lin_solver.Solve(Mt, Ainv, G, self.D, self.Ma, rhs)
-
-		phi = GridFunction(self.phi_space)
-		phi.data = x[self.J_space.Nu:]
-
-		return phi 
-
-	def LDU(self, A, Ainv, G, rhs):
-		M = sp.bmat([[A, G], [self.D, self.Ma]])
-
-		DAinv = self.D*Ainv 
-		AinvG = Ainv*G 
-		S = self.Ma - self.D*Ainv*G
-		amg = pyamg.ruge_stuben_solver(S.tocsr())
-		# lu = spla.splu(S)
-		def Prec(b):
-			z1 = b[:A.shape[0]]
-			z2 = b[A.shape[0]:] - DAinv*z1
-
-			y1 = Ainv*z1
-			y2 = amg.solve(z2, maxiter=1)
-			# y2 = lu.solve(z2)
-
-			x2 = y2.copy()
-			x1 = y1 - AinvG*x2 
-
-			return np.concatenate((x1, x2))
-
-		p = spla.LinearOperator(M.shape, Prec)
-		self.linear_its = 0
-		def cb(r):
-			self.linear_its += 1
-			norm = np.linalg.norm(r)
-			# print('   i={}, norm={:.3e}'.format(gmres, norm))
-
-		x, info = spla.gmres(M, rhs, M=p, tol=self.lin_tol, maxiter=1000, callback=cb)
 
 		phi = GridFunction(self.phi_space)
 		phi.data = x[self.J_space.Nu:]
