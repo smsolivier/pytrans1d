@@ -66,7 +66,7 @@ class AbstractVEF(Sn):
 		return phi 
 
 class VEF(AbstractVEF): 
-	def __init__(self, phi_space, J_space, sweeper, lin_solver):
+	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
 		AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver)
 		self.lin_solver = lin_solver 
 
@@ -129,7 +129,7 @@ class VEF(AbstractVEF):
 		return phi 
 
 class VEFH(AbstractVEF):
-	def __init__(self, phi_space, J_space, sweeper, lin_solver):
+	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
 		if (isinstance(J_space, H1Space)):
 			J_space = L2Space(J_space.xe, J_space.basis)
 		AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver) 

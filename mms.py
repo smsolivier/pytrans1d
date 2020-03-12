@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from integrators import * 
 from sn import * 
 from qdf import * 
+from vef import * 
 
 def SolveH1Diffusion(Ne, p):
 	xe = np.linspace(0, 1, Ne+1)
@@ -222,6 +223,40 @@ def SolveHybVEF(Ne, p):
 	merr = np.max(np.fabs(phi_ex(m_space.x) - lam.data))
 	return err, merr
 
+def SolveVEFSn(Ne, p):
+	N = 8 
+	leg = LegendreBasis(p-1)
+	lob = LobattoBasis(p)
+	tleg = LegendreBasis(p) 
+	xe = np.linspace(0,1,Ne+1)
+	phi_space = L2Space(xe, leg)
+	J_space = H1Space(xe, lob)
+	tspace = L2Space(xe, tleg)
+
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1 
+	sigma_s = lambda x: .1
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False, phi_space)
+	amg = AMGSolver(1e-12, 100, 1)
+	vef = VEFH(phi_space, J_space, sweep, amg)
+	psi = TVector(tspace, N)
+	phi = vef.SourceIteration(psi)
+
+	err = phi.L2ProjError(phi_ex, 2*p+1)
+	return err 
+
 Ne = 4
 print('h1 diffusion:')
 for p in range(1, 6):
@@ -276,3 +311,14 @@ for p in range(0, 6):
 	if (abs(ooa-p-2) > .1):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f}, m1={:.3e}, m2={:.3e}'.format(p, ooa, mE1, mE2), color))
+
+Ne = 8
+print('Full VEF Alg')
+for p in range(1,5):
+	E1 = SolveVEFSn(Ne, p)
+	E2 = SolveVEFSn(2*Ne, p)
+	ooa = np.log(E1/E2)/np.log(2)
+	color = 'green'
+	if (abs(ooa-p-1)>.1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
