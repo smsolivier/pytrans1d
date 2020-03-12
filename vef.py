@@ -105,7 +105,7 @@ class VEFH(AbstractVEF):
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf)
-		C1 = MixFaceAssemble(self.J_space, self.m_space, EddConstraintIntegrator, self.qdf)
+		C1 = MixFaceAssemble(self.J_space, self.m_space, UpwEddConstraintIntegrator, self.qdf)
 		Q1 = self.Q1 + qin 
 
 		W, X, Y, Z = self.FormBlockInv()

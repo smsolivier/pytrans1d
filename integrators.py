@@ -163,7 +163,7 @@ def ConstraintIntegrator(face1, face2, c):
 	jump = np.concatenate((s21, -s22))
 	return np.outer(avg, jump) * c * face1.nor
 
-def EddConstraintIntegrator(face1, face2, qdf):
+def UpwEddConstraintIntegrator(face1, face2, qdf):
 	xi1 = face1.IPTrans(0)
 	xi2 = face2.IPTrans(1) 
 	s11 = face1.el1.CalcShape(xi1)
@@ -174,6 +174,19 @@ def EddConstraintIntegrator(face1, face2, qdf):
 	avg = .5*np.concatenate((s21, s22))
 	E = qdf.EvalFactorBdr(face1)
 	return np.outer(jump, avg) * E * face1.nor
+
+def EddConstraintIntegrator(face1, face2, qdf):
+	xi1 = face1.IPTrans(0)
+	xi2 = face2.IPTrans(1) 
+	s11 = face1.el1.CalcShape(xi1)
+	s12 = face1.el2.CalcShape(xi2) 
+	E1 = qdf.EvalFactor(face1.el1, xi1)
+	E2 = qdf.EvalFactor(face1.el2, xi2)
+	jump = np.concatenate((E1*s11, -E2*s12))
+	s21 = face2.el1.CalcShape(xi1)
+	s22 = face2.el2.CalcShape(xi2) 
+	avg = .5*np.concatenate((s21, s22))
+	return np.outer(jump, avg) * face1.nor
 
 def DomainIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)

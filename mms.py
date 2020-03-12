@@ -185,7 +185,7 @@ def SolveHybVEF(Ne, p):
 	Ma = Assemble(phi_space, MassIntegrator, sigma_a, qorder)
 	G = MixAssemble(J_space, phi_space, MixWeakEddDivIntegrator, qdf, qorder)
 	D = MixAssemble(phi_space, J_space, MixDivIntegrator, 1, qorder) 
-	C1 = MixFaceAssemble(J_space, m_space, EddConstraintIntegrator, qdf)
+	C1 = MixFaceAssemble(J_space, m_space, UpwEddConstraintIntegrator, qdf)
 	C2 = MixFaceAssemble(m_space, J_space, ConstraintIntegrator, 1) 
 
 	Mtinv = spla.inv(Mt)
