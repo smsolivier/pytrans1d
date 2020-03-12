@@ -116,7 +116,7 @@ def VEFInflowIntegrator(face_t, qdf):
 	s = face_t.el1.CalcShape(xi1)
 	E = qdf.EvalFactor(face_t.el1, xi1)
 	G = qdf.EvalG(face_t)
-	elvec = 2*s * E / G * qdf.EvalJinBdr(face_t) 
+	elvec = 2*s * E / G * qdf.EvalJinBdr(face_t) * face_t.nor
 	return elvec 
 
 def ConstraintIntegrator(face1, face2, c):
@@ -129,6 +129,18 @@ def ConstraintIntegrator(face1, face2, c):
 	s22 = face2.el2.CalcShape(xi2) 
 	jump = np.concatenate((s21, -s22))
 	return np.outer(avg, jump) * c * face1.nor
+
+def EddConstraintIntegrator(face1, face2, qdf):
+	xi1 = face1.IPTrans(0)
+	xi2 = face2.IPTrans(1) 
+	s11 = face1.el1.CalcShape(xi1)
+	s12 = face1.el2.CalcShape(xi2) 
+	jump = np.concatenate((s11, -s12))
+	s21 = face2.el1.CalcShape(xi1)
+	s22 = face2.el2.CalcShape(xi2) 
+	avg = .5*np.concatenate((s21, s22))
+	E = qdf.EvalFactorBdr(face1)
+	return np.outer(jump, avg) * E * face1.nor
 
 def DomainIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)

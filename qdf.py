@@ -31,6 +31,23 @@ class QDFactors:
 	def EvalFactor(self, el, xi):
 		return self.P.Interpolate(el.ElNo, xi) / self.phi.Interpolate(el.ElNo, xi) 
 
+	def EvalFactorBdr(self, face):
+		P = 0 
+		phi = 0 
+		for a in range(self.N):
+			mu = self.mu[a] 
+			if (mu*face.nor>0):
+				el = face.el1.ElNo
+				xi = face.IPTrans(0)
+			else:
+				el = face.el2.ElNo
+				xi = face.IPTrans(1)
+			psi_at_ip = self.psi.GetAngle(a).Interpolate(el, xi)
+			P += mu**2 * self.w[a] * psi_at_ip
+			phi += self.w[a] * psi_at_ip
+
+		return P/phi 
+
 	def EvalG(self, face_t):
 		xi = face_t.IPTrans(0)
 		t = 0 
@@ -49,6 +66,6 @@ class QDFactors:
 		Jin = 0 
 		for a in range(self.N):
 			if (self.mu[a]*face_t.nor<0):
-				Jin += self.mu[a] * self.w[a] * self.psi_in(x,self.mu[a])
+				Jin += face_t.nor*self.mu[a] * self.w[a] * self.psi_in(x,self.mu[a])
 
 		return Jin
