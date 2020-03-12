@@ -20,6 +20,18 @@ def MassIntegrator(el, c, qorder):
 
 	return elmat 
 
+def MassIntegratorLumped(el, c, qorder):
+	ip, w = quadrature.GetLumped(el)
+	elmat = np.zeros((el.Nn, el.Nn))
+
+	for n in range(len(w)):
+		s = el.CalcShape(ip[n]) 
+		X = el.Transform(ip[n])
+		coef = c(X)
+		elmat += np.outer(s,s) * coef * w[n] * el.Jacobian(ip[n])
+
+	return elmat 
+
 def MixMassIntegrator(el1, el2, c, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el1.Nn, el2.Nn))
