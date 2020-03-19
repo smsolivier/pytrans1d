@@ -154,6 +154,7 @@ class VEFH(AbstractVEF):
 		self.C2 = MixFaceAssemble(self.m_space, self.J_space, ConstraintIntegrator, 1) 
 		self.edd_constraint = UpwEddConstraintIntegrator
 		self.pp = pp
+		self.pp_type = 'lagrange'
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
@@ -190,8 +191,10 @@ class VEFH(AbstractVEF):
 
 		phi = GridFunction(self.low_space)
 		phi.data = Y*Q1 - Y*C1*lam + Z*self.Q0
+		J = GridFunction(self.J_space)
+		J.data = W*(Q1 - C1*lam) + X*self.Q0 
 
-		if (self.pp):
+		if (self.pp and self.pp_type=='lagrange'):
 			phi_star = GridFunction(self.phi_space)
 			for e in range(self.phi_space.Ne):
 				el = self.phi_space.el[e]
@@ -219,6 +222,39 @@ class VEFH(AbstractVEF):
 					phi_star.SetDof(e, local)
 
 			return phi_star
+		elif (self.pp and self.pp_type=='vef'):
+			phi_star = GridFunction(self.phi_space) 
+			p = self.phi_space.basis.p 
+			qorder = max(2, 2*p+1) 
+			for e in range(self.phi_space.Ne):
+				el = self.phi_space.el[e]
+				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
+				Ma = MassIntegrator(el, self.sigma_a, qorder)
+
+				Q0 = np.zeros(el.Nn)
+				Q1 = np.zeros(el.Nn)
+				for a in range(self.N):
+					w = self.w[a]
+					mu = self.mu[a] 
+					Q0 += w * DomainIntegrator(el, lambda x: self.sweeper.Q(x,mu), qorder)
+					Q1 += w * mu * GradDomainIntegrator(el, 
+						lambda x: self.sweeper.Q(x,mu)/self.sweeper.sigma_t(x), qorder) 
+
+				f = Q0 + Q1 - el.CalcShape(1)*J.Interpolate(e, 1) \
+					+ el.CalcShape(-1)*J.Interpolate(e, -1) 
+
+				M1 = MixMassIntegrator(el, self.low_space.el[e], lambda x: 1, qorder) 
+				M2 = MassIntegrator(self.low_space.el[e], lambda x: 1, qorder) 
+				g = np.dot(M2, phi.GetDof(e))
+
+				A = np.bmat([[K+Ma, M1], [M1.transpose(), np.zeros(M2.shape)]])
+				rhs = np.concatenate((f, g))
+
+				x = np.linalg.solve(A, rhs) 
+				local = x[:el.Nn]
+				phi_star.SetDof(e, local) 
+
+			return phi_star 
 		else:
 			return phi 
 
