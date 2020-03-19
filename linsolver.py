@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla 
 import pyamg 
+import time 
 
 class IterativeSolver:
 	def __init__(self, itol, maxiter, LOUD=False):
@@ -178,11 +179,8 @@ class AMGSolver(IterativeSolver):
 	def Solve(self, A, b):
 		self.it = 0
 		amg = pyamg.ruge_stuben_solver(A)
-		def AMG(x):
-			return amg.solve(x, maxiter=self.inner)
-
-		p = spla.LinearOperator(A.shape, AMG)
-		x, info = spla.gmres(A, b, M=p, callback=self.Callback, tol=self.itol, maxiter=self.maxiter)
+		x, info = spla.gmres(A, b, M=amg.aspreconditioner(cycle='V'), 
+			callback=self.Callback, tol=self.itol, maxiter=self.maxiter)
 
 		return x
 
