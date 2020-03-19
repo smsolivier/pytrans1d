@@ -35,6 +35,10 @@ class Element:
 		shape = self.CalcShape(xi)
 		return np.dot(u, shape) 
 
+	def InterpolateGrad(self, xi, u):
+		pgshape = self.CalcPhysGradShape(xi)
+		return np.dot(u, pgshape) 
+
 if __name__=='__main__':
 	p = 1 
 	basis = LegendreBasis(p) 

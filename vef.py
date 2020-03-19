@@ -66,14 +66,22 @@ class AbstractVEF(Sn):
 		return phi 
 
 class VEF(AbstractVEF): 
-	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
-		AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver)
+	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
+		if (pp):
+			self.low_space = phi_space 
+			AbstractVEF.__init__(self, self.low_space, J_space, sweeper, lin_solver)
+			new_basis = type(phi_space.basis)(phi_space.basis.p+1)
+			self.phi_space = type(phi_space)(phi_space.xe, new_basis) 
+		else:
+			AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver)
+			self.low_space = phi_space 
 		self.lin_solver = lin_solver 
+		self.pp = pp 
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi) 
 		B = BdrFaceAssemble(self.J_space, MLBdrIntegrator, self.qdf)
-		G = MixAssemble(self.J_space, self.phi_space, MixWeakEddDivIntegrator, self.qdf, 2*self.p+1) 
+		G = MixAssemble(self.J_space, self.low_space, MixWeakEddDivIntegrator, self.qdf, 2*self.p+1) 
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf) 
 
 		Mt = self.Mt + B 
@@ -88,10 +96,46 @@ class VEF(AbstractVEF):
 			Ainv = sp.diags(1/(self.Mtl + B).diagonal())
 			x = self.lin_solver.Solve(Mt, Ainv, G, self.D, self.Ma, rhs)
 
-		phi = GridFunction(self.phi_space)
+		phi = GridFunction(self.low_space)
 		phi.data = x[self.J_space.Nu:]
+		J = GridFunction(self.J_space)
+		J.data = x[:self.J_space.Nu] 
 
-		return phi 
+		if (self.pp):
+			phi_star = GridFunction(self.phi_space) 
+			p = self.phi_space.basis.p 
+			qorder = max(2, 2*p+1) 
+			for e in range(self.phi_space.Ne):
+				el = self.phi_space.el[e]
+				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
+				Ma = MassIntegrator(el, self.sigma_a, qorder)
+
+				Q0 = np.zeros(el.Nn)
+				Q1 = np.zeros(el.Nn)
+				for a in range(self.N):
+					w = self.w[a]
+					mu = self.mu[a] 
+					Q0 += w * DomainIntegrator(el, lambda x: self.sweeper.Q(x,mu), qorder)
+					Q1 += w * mu * GradDomainIntegrator(el, 
+						lambda x: self.sweeper.Q(x,mu)/self.sweeper.sigma_t(x), qorder) 
+
+				f = Q0 + Q1 - el.CalcShape(1)*J.Interpolate(e, 1) \
+					+ el.CalcShape(-1)*J.Interpolate(e, -1) 
+
+				M1 = MixMassIntegrator(el, self.low_space.el[e], lambda x: 1, qorder) 
+				M2 = MassIntegrator(self.low_space.el[e], lambda x: 1, qorder) 
+				g = np.dot(M2, phi.GetDof(e))
+
+				A = np.bmat([[K+Ma, M1], [M1.transpose(), np.zeros(M2.shape)]])
+				rhs = np.concatenate((f, g))
+
+				x = np.linalg.solve(A, rhs) 
+				local = x[:el.Nn]
+				phi_star.SetDof(e, local) 
+
+			return phi_star 
+		else:
+			return phi 
 
 class VEFH(AbstractVEF):
 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):

@@ -31,6 +31,15 @@ class QDFactors:
 	def EvalFactor(self, el, xi):
 		return self.P.Interpolate(el.ElNo, xi) / self.phi.Interpolate(el.ElNo, xi) 
 
+	def EvalFactorDeriv(self, el, xi):
+		n = el.ElNo
+		P = self.P.Interpolate(n, xi)
+		dP = self.P.InterpolateGrad(n, xi) 
+		phi = self.phi.Interpolate(n, xi)
+		dphi = self.phi.InterpolateGrad(n, xi) 
+
+		return (dP*phi - P*dphi)/phi**2 
+
 	def EvalFactorBdr(self, face):
 		P = 0 
 		phi = 0 

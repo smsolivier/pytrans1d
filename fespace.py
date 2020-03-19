@@ -94,6 +94,9 @@ class GridFunction:
 	def Interpolate(self, e, xi):
 		return self.space.el[e].Interpolate(xi, self.GetDof(e))
 
+	def InterpolateGrad(self, e, xi):
+		return self.space.el[e].InterpolateGrad(xi, self.GetDof(e))
+		
 	def Project(self, func):
 		for e in range(self.space.Ne):
 			el = self.space.el[e]

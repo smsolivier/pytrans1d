@@ -78,6 +78,27 @@ def WeakPoissonIntegrator(el, c, qorder):
 
 	return elmat 
 
+def VEFPoissonIntegrator(el, c, qorder):
+	qdf = c[0] 
+	sigma_t = c[1]
+	ip, w = quadrature.Get(qorder)
+	elmat = np.zeros((el.Nn, el.Nn))
+
+	for n in range(len(w)):
+		g = el.CalcPhysGradShape(ip[n]) 
+		s = el.CalcShape(ip[n])
+		E = qdf.EvalFactor(el, ip[n]) 
+		dE = qdf.EvalFactorDeriv(el, ip[n]) 
+		X = el.Transform(ip[n]) 
+		sig_eval = sigma_t(X) 
+
+		m1 = np.outer(g, s) / sig_eval * dE * w[n] * el.Jacobian(ip[n]) 
+		m2 = np.outer(g, g) / sig_eval * E * w[n] * el.Jacobian(ip[n]) 
+
+		elmat += m1 + m2 
+
+	return elmat 
+
 def WeakConvectionIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el.Nn, el.Nn))
@@ -196,6 +217,18 @@ def DomainIntegrator(el, c, qorder):
 		s = el.CalcShape(ip[n]) 
 		X = el.Transform(ip[n]) 
 		elvec += s * c(X) * w[n] * el.Jacobian(ip[n]) 
+
+	return elvec 
+
+def GradDomainIntegrator(el, c, qorder):
+	ip, w = quadrature.Get(qorder)
+	elvec = np.zeros(el.Nn)
+
+	for n in range(len(w)):
+		g = el.CalcPhysGradShape(ip[n]) 
+		X = el.Transform(ip[n]) 
+		c_eval = c(X) 
+		elvec += g * c_eval * w[n] * el.Jacobian(ip[n]) 
 
 	return elvec 
 
