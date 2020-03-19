@@ -4,9 +4,11 @@ import ctypes
 import numpy as np 
 from numpy.ctypeslib import ndpointer 
 import sys
+import pathlib 
 
 try:
-	_eval = ctypes.CDLL('./polyval.so')
+	file = pathlib.Path(__file__).parent.absolute()
+	_eval = ctypes.CDLL(str(file) + '/polyval.so')
 except:
 	print('polyval.so not found') 
 	print('build with gcc -fPIC -shared -o polyval.so polyval.c')
