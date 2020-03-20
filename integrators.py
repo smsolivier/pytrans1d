@@ -145,6 +145,38 @@ def MixDivIntegrator(el1, el2, c, qorder):
 
 	return elmat 
 
+def WeakMixDivIntegrator(el1, el2, c, qorder):
+	ip, w = quadrature.Get(qorder)
+	elmat = np.zeros((el1.Nn, el2.Nn))
+
+	for n in range(len(w)):
+		g = el1.CalcPhysGradShape(ip[n]) 
+		s = el2.CalcShape(ip[n]) 
+		elmat -= np.outer(g, s) * w[n] * el2.Jacobian(ip[n]) 
+
+	return elmat 
+
+def MixJumpAvgIntegrator(face1, face2, c):
+	xi1 = face1.IPTrans(0)
+	xi2 = face1.IPTrans(1)
+	s11 = face1.el1.CalcShape(xi1)
+	s12 = face1.el2.CalcShape(xi2)
+	jump = np.concatenate((s11, -s12))
+
+	s21 = face2.el1.CalcShape(xi1)
+	s22 = face2.el2.CalcShape(xi2)
+	avg = .5*np.concatenate((s21, s22))
+
+	return np.outer(jump, avg) * c* face1.nor 
+
+def JumpJumpIntegrator(face, c):
+	xi1 = face.IPTrans(0)
+	xi2 = face.IPTrans(1)
+	s1 = face.el1.CalcShape(xi1)
+	s2 = face.el2.CalcShape(xi2)
+	jump = np.concatenate((s1, -s2))
+	return np.outer(jump, jump) * c 
+
 def MixWeakEddDivIntegrator(el1, el2, qdf, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el1.Nn, el2.Nn))
