@@ -15,7 +15,7 @@ class Quadrature:
 		self.nc_ip = [] 
 		self.nc_w = [] 
 
-		pmax = 20
+		pmax = 50
 		for p in range(1, pmax):
 			ip, w = np.polynomial.legendre.leggauss(p)
 			self.leg_ip.append(ip)
