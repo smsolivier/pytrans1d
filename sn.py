@@ -45,6 +45,13 @@ class Sn:
 
 		return phi 
 
+	def ComputeCurrent(self, psi):
+		J = GridFunction(self.space)
+		for a in range(self.N):
+			J.data += self.w[a] * self.mu[a] * psi.GetAngle(a).data 
+
+		return J 
+
 	def SourceIteration(self, psi, niter=50, tol=1e-6):
 		phi_old = GridFunction(self.space) 
 		phi = self.ComputeScalarFlux(psi) 
