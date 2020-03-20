@@ -17,18 +17,20 @@ class AbstractVEF(Sn):
 
 		p = J_space.basis.p
 		self.p = p 
+		qorder = 2*p+1
+		self.qorder = qorder 
 		self.sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x)
-		self.Mt = Assemble(self.J_space, MassIntegrator, sweeper.sigma_t, 2*p+1)
-		self.Mtl = Assemble(self.J_space, MassIntegratorLumped, sweeper.sigma_t, 2*p+1)
-		self.Ma = Assemble(self.phi_space, MassIntegrator, self.sigma_a, 2*p+1)
-		self.D = MixAssemble(self.phi_space, self.J_space, MixDivIntegrator, 1, 2*p+1) 
+		self.Mt = Assemble(self.J_space, MassIntegrator, sweeper.sigma_t, qorder)
+		self.Mtl = Assemble(self.J_space, MassIntegratorLumped, sweeper.sigma_t, qorder)
+		self.Ma = Assemble(self.phi_space, MassIntegrator, self.sigma_a, qorder)
+		self.D = MixAssemble(self.phi_space, self.J_space, MixDivIntegrator, 1, qorder) 
 
 		self.Q0 = np.zeros(phi_space.Nu)
 		self.Q1 = np.zeros(J_space.Nu)
 		for a in range(self.N):
 			mu = self.mu[a]
-			self.Q0 += AssembleRHS(phi_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), 2*p+1)*self.w[a]
-			self.Q1 += AssembleRHS(J_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), 2*p+1)*mu*self.w[a]
+			self.Q0 += AssembleRHS(phi_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*self.w[a]
+			self.Q1 += AssembleRHS(J_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*mu*self.w[a]
 
 		self.qdf = QDFactors(self.space, self.N, self.sweeper.psi_in) 
 
@@ -40,7 +42,7 @@ class AbstractVEF(Sn):
 			start = time.time() 
 			phi_old.data = phi.data.copy() 
 			self.sweeper.Sweep(psi, phi) 
-			phi = self.Mult(psi)
+			phi, J = self.Mult(psi)
 			norm = phi.L2Diff(phi_old, 2*self.p+1)
 			if (self.lin_solver!=None):
 				linits += self.lin_solver.it 
@@ -81,7 +83,7 @@ class VEF(AbstractVEF):
 	def Mult(self, psi):
 		self.qdf.Compute(psi) 
 		B = BdrFaceAssemble(self.J_space, MLBdrIntegrator, self.qdf)
-		G = MixAssemble(self.J_space, self.low_space, MixWeakEddDivIntegrator, self.qdf, 2*self.p+1) 
+		G = MixAssemble(self.J_space, self.low_space, MixWeakEddDivIntegrator, self.qdf, self.qorder) 
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf) 
 
 		Mt = self.Mt + B 
@@ -104,7 +106,8 @@ class VEF(AbstractVEF):
 		if (self.pp):
 			phi_star = GridFunction(self.phi_space) 
 			p = self.phi_space.basis.p 
-			qorder = max(2, 2*p+1) 
+			# qorder = max(2, 2*p+1) 
+			qorder = self.qorder
 			for e in range(self.phi_space.Ne):
 				el = self.phi_space.el[e]
 				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
@@ -133,9 +136,9 @@ class VEF(AbstractVEF):
 				local = x[:el.Nn]
 				phi_star.SetDof(e, local) 
 
-			return phi_star 
+			return phi_star, J
 		else:
-			return phi 
+			return phi, J
 
 class VEFH(AbstractVEF):
 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
@@ -208,8 +211,8 @@ class VEFH(AbstractVEF):
 				if (p>0):
 					basis = LegendreBasis(self.phi_space.basis.p-2)
 					el2 = Element(basis, el.line) 
-					M2 = MixMassIntegrator(el2, el, lambda x: 1, 2*p+1)
-					mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, 2*p+1)
+					M2 = MixMassIntegrator(el2, el, lambda x: 1, self.qorder)
+					mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, self.qorder)
 					b2 = np.dot(mixmass, phi.GetDof(e))
 
 					A = np.vstack((M1, M2))
@@ -221,11 +224,11 @@ class VEFH(AbstractVEF):
 					local = np.linalg.solve(M1, b1)
 					phi_star.SetDof(e, local)
 
-			return phi_star
+			return phi_star, J
 		elif (self.pp and self.pp_type=='vef'):
 			phi_star = GridFunction(self.phi_space) 
 			p = self.phi_space.basis.p 
-			qorder = max(2, 2*p+1) 
+			qorder = self.qorder
 			for e in range(self.phi_space.Ne):
 				el = self.phi_space.el[e]
 				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
@@ -254,9 +257,9 @@ class VEFH(AbstractVEF):
 				local = x[:el.Nn]
 				phi_star.SetDof(e, local) 
 
-			return phi_star 
+			return phi_star, J
 		else:
-			return phi 
+			return phi, J
 
 	def FormBlockInv(self):
 		W = COOBuilder(self.J_space.Nu)
@@ -268,9 +271,9 @@ class VEFH(AbstractVEF):
 			phi_el = self.low_space.el[e]
 			J_el = self.J_space.el[e] 
 
-			Ma = MassIntegrator(phi_el, self.sigma_a, 2*self.p+1)
-			D = MixDivIntegrator(phi_el, J_el, 1, 2*self.p+1)
-			Mt = MassIntegrator(J_el, self.sweeper.sigma_t, 2*self.p+1)
+			Ma = MassIntegrator(phi_el, self.sigma_a, self.qorder)
+			D = MixDivIntegrator(phi_el, J_el, 1, self.qorder)
+			Mt = MassIntegrator(J_el, self.sweeper.sigma_t, self.qorder)
 			if (phi_el.ElNo==0):
 				B = MLBdrIntegrator(self.J_space.bface[0], self.qdf)
 				Mt += B
@@ -278,7 +281,7 @@ class VEFH(AbstractVEF):
 				B = MLBdrIntegrator(self.J_space.bface[-1], self.qdf)
 				Mt += B
 			Mtinv = np.linalg.inv(Mt)
-			G = MixWeakEddDivIntegrator(J_el, phi_el, self.qdf, 2*self.p+1)
+			G = MixWeakEddDivIntegrator(J_el, phi_el, self.qdf, self.qorder)
 
 			S = Ma - np.linalg.multi_dot([D, Mtinv, G])
 			Sinv = np.linalg.inv(S)
@@ -302,7 +305,9 @@ if __name__=='__main__':
 	if (len(sys.argv)>2):
 		p = int(sys.argv[2])
 	N = 8
-	xe = np.linspace(0,1,Ne+1)
+	h = 1
+	L = Ne*h
+	xe = np.linspace(0,L,Ne+1)
 	leg = LegendreBasis(p)
 	lob = LobattoBasis(p+1) 	
 	phi_space = L2Space(xe, leg)
@@ -317,14 +322,15 @@ if __name__=='__main__':
 	ltol = 1e-8
 	inner = 1
 	maxiter = 50
+	pp = False
 	gs = GaussSeidel(ltol, 2, True)
 	block = BlockLDU(ltol, maxiter, inner, False)
 	# block = BlockLDURelax(ltol, maxiter, gs, inner, False)
 	# block = BlockTri(ltol, maxiter, inner, False)
 	# block = BlockDiag(ltol, maxiter, inner, False)
-	vef = VEF(phi_space, J_space, sweep, block)
+	vef = VEF(phi_space, J_space, sweep, block, pp)
 	amg = AMGSolver(ltol, maxiter, inner, False)
-	vefh = VEFH(phi_space, J_space, sweep, amg)
+	vefh = VEFH(phi_space, J_space, sweep, amg, pp)
 	psi = TVector(phi_space, N)
 	psi.Project(lambda x, mu: 1)
 	phi = vef.SourceIteration(psi)
