@@ -139,7 +139,8 @@ class GridFunction:
 	def __rmul__(self, A):
 		return A*self.data 
 
-	def EvalSubEl(self, sub=8):
+	def EvalSubEl(self, a=2, b=1):
+		sub = a*self.space.basis.p + b
 		Ne = self.space.Ne
 		x = np.zeros(Ne*sub) 
 		u = np.zeros(Ne*sub)  
@@ -151,6 +152,15 @@ class GridFunction:
 
 		return x, u
 
+	def Continuity(self):
+		l2 = 0 
+		for e in range(1, self.space.Ne-1):
+			left = self.Interpolate(e, 1)
+			right = self.Interpolate(e+1, -1) 
+			l2 += (left - right)**2 
+
+		return np.sqrt(l2)
+		
 if __name__=='__main__':
 	Ne = 2
 	p = 5	
