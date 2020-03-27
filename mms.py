@@ -44,9 +44,9 @@ def SolveSn(Ne, p):
 
 def SolveVEF(Ne, p):
 	N = 8 
-	leg = LegendreBasis(p)
-	leg2 = LegendreBasis(p+1)
-	lob = LobattoBasis(p+1) 
+	leg = LegendreBasis(p-1)
+	leg2 = LegendreBasis(p)
+	lob = LobattoBasis(p) 
 	xe = np.linspace(0,1,Ne+1)
 	space = L2Space(xe, leg2)
 	phi_space = L2Space(xe, leg)
@@ -55,20 +55,21 @@ def SolveVEF(Ne, p):
 	alpha = 1 
 	beta = .1
 	gamma = 1 
-	delta = 0
+	delta = 1
 	eta = .1
 	L = 1 + 2*eta
 	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
-		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
-	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta 
+		+ beta*mu*np.sin(2*np.pi*x) + gamma*mu**2*x*(1-x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*x*(1-x) + delta 
+	J_ex = lambda x: beta/3*np.sin(2*np.pi*x) 
 	psi.Project(psi_ex)
 	qdf = QDFactors(space, N, psi_ex) 
 	qdf.Compute(psi) 
 	sigma_t = lambda x: 1 
 	sigma_s = lambda x: .1
 	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
-	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
-		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*2*np.pi*np.cos(2*np.pi*x) 
+		+ gamma*mu**3*(1-2*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
 	Q0 = np.zeros(phi_space.Nu)
 	Q1 = np.zeros(J_space.Nu)
@@ -92,9 +93,12 @@ def SolveVEF(Ne, p):
 	x = spla.spsolve(A, rhs) 
 	phi = GridFunction(phi_space)
 	phi.data = x[J_space.Nu:]
+	J = GridFunction(J_space)
+	J.data = x[:J_space.Nu]
 
-	err = phi.L2ProjError(phi_ex, 2*p+1)
-	return err 
+	err = phi.L2Error(phi_ex, 2*p+1)
+	jerr = J.L2Error(J_ex, 2*p+1) 
+	return np.array([err, jerr])
 
 def SolveHybDiffusion(Ne, p):
 	xe = np.linspace(0,1,Ne+1)
@@ -312,16 +316,17 @@ for p in range(1, 6):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
 
-Ne = 6
+Ne = 10
 print('VEF:')
-for p in range(0, 6):
+for p in range(1, 6):
 	E1 = SolveVEF(Ne, p)
 	E2 = SolveVEF(2*Ne, p)
 	ooa = np.log(E1/E2)/np.log(2)
 	color = 'green'
-	if (abs(ooa-p-2) > .1):
+	if (abs(ooa[0]-p) > .1 or abs(ooa[1]-p-1) > .1):
 		color = 'red'
-	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+	print(colored('   p={}, ooa={:.3f} ({:.3e}, {:.3e}), jooa={:.3f} ({:.3e}, {:.3e})'.format(
+		p, ooa[0], E1[0], E2[0], ooa[1], E1[1], E2[1]), color))
 
 Ne = 10
 print('Hyb Diffusion:')
