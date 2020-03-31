@@ -33,6 +33,7 @@ class AbstractVEF(Sn):
 			self.Q1 += AssembleRHS(J_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*mu*self.w[a]
 
 		self.qdf = QDFactors(self.space, self.N, self.sweeper.psi_in) 
+		self.k = 0
 
 	def SourceIteration(self, psi, niter=50, tol=1e-6):
 		phi = GridFunction(self.phi_space)
@@ -66,6 +67,42 @@ class AbstractVEF(Sn):
 			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
 
 		return phi 
+
+	def PostProcess(self, k, phi, J):
+		phi_star = GridFunction(self.phi_space)
+		basis = LegendreBasis(k) 
+		lam_space = L2Space(self.space.xe, basis) 
+		for e in range(self.phi_space.Ne):
+			star_el = self.phi_space.el[e] 
+			lam_el = lam_space.el[e] 
+			phi_el = self.low_space.el[e]
+			J_el = self.J_space.el[e] 
+
+			K = VEFPoissonIntegrator(star_el, [self.qdf, self.sweeper.sigma_t], self.qorder)
+			Ma = MassIntegrator(star_el, self.sigma_a, self.qorder)
+
+			Q0 = np.zeros(star_el.Nn)
+			Q1 = np.zeros(star_el.Nn)
+			for a in range(self.N):
+				w = self.w[a]
+				mu = self.mu[a] 
+				Q0 += w * DomainIntegrator(star_el, lambda x: self.sweeper.Q(x,mu), self.qorder)
+				Q1 += w * mu * GradDomainIntegrator(star_el, 
+					lambda x: self.sweeper.Q(x,mu)/self.sweeper.sigma_t(x), self.qorder) 
+
+			Jbdr = star_el.CalcShape(1)*J.Interpolate(e,1) - star_el.CalcShape(-1)*J.Interpolate(e,-1)
+			f = Q0 + Q1 - Jbdr 
+
+			M1 = MixMassIntegrator(star_el, lam_el, lambda x: 1, self.qorder)
+			M2 = MixMassIntegrator(lam_el, phi_el, lambda x: 1, self.qorder) 
+			g = np.dot(M2, phi.GetDof(e))
+
+			A = np.bmat([[K+Ma, M1], [M1.transpose(), np.zeros((lam_el.Nn, lam_el.Nn))]])
+			rhs = np.concatenate((f, g))
+
+			x = np.linalg.solve(A, rhs) 
+			phi_star.SetDof(e, x[:star_el.Nn])
+		return phi_star
 
 class VEF(AbstractVEF): 
 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
@@ -104,38 +141,7 @@ class VEF(AbstractVEF):
 		J.data = x[:self.J_space.Nu] 
 
 		if (self.pp):
-			phi_star = GridFunction(self.phi_space) 
-			p = self.phi_space.basis.p 
-			# qorder = max(2, 2*p+1) 
-			qorder = self.qorder
-			for e in range(self.phi_space.Ne):
-				el = self.phi_space.el[e]
-				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
-				Ma = MassIntegrator(el, self.sigma_a, qorder)
-
-				Q0 = np.zeros(el.Nn)
-				Q1 = np.zeros(el.Nn)
-				for a in range(self.N):
-					w = self.w[a]
-					mu = self.mu[a] 
-					Q0 += w * DomainIntegrator(el, lambda x: self.sweeper.Q(x,mu), qorder)
-					Q1 += w * mu * GradDomainIntegrator(el, 
-						lambda x: self.sweeper.Q(x,mu)/self.sweeper.sigma_t(x), qorder) 
-
-				f = Q0 + Q1 - el.CalcShape(1)*J.Interpolate(e, 1) \
-					+ el.CalcShape(-1)*J.Interpolate(e, -1) 
-
-				M1 = MixMassIntegrator(el, self.low_space.el[e], lambda x: 1, qorder) 
-				M2 = MassIntegrator(self.low_space.el[e], lambda x: 1, qorder) 
-				g = np.dot(M2, phi.GetDof(e))
-
-				A = np.bmat([[K+Ma, M1], [M1.transpose(), np.zeros(M2.shape)]])
-				rhs = np.concatenate((f, g))
-
-				x = np.linalg.solve(A, rhs) 
-				local = x[:el.Nn]
-				phi_star.SetDof(e, local) 
-
+			phi_star = self.PostProcess(self.k, phi, J) 
 			return phi_star, J
 		else:
 			return phi, J
@@ -226,37 +232,7 @@ class VEFH(AbstractVEF):
 
 			return phi_star, J
 		elif (self.pp and self.pp_type=='vef'):
-			phi_star = GridFunction(self.phi_space) 
-			p = self.phi_space.basis.p 
-			qorder = self.qorder
-			for e in range(self.phi_space.Ne):
-				el = self.phi_space.el[e]
-				K = VEFPoissonIntegrator(el, [self.qdf, self.sweeper.sigma_t], qorder) 
-				Ma = MassIntegrator(el, self.sigma_a, qorder)
-
-				Q0 = np.zeros(el.Nn)
-				Q1 = np.zeros(el.Nn)
-				for a in range(self.N):
-					w = self.w[a]
-					mu = self.mu[a] 
-					Q0 += w * DomainIntegrator(el, lambda x: self.sweeper.Q(x,mu), qorder)
-					Q1 += w * mu * GradDomainIntegrator(el, 
-						lambda x: self.sweeper.Q(x,mu)/self.sweeper.sigma_t(x), qorder) 
-
-				f = Q0 + Q1 - el.CalcShape(1)*J.Interpolate(e, 1) \
-					+ el.CalcShape(-1)*J.Interpolate(e, -1) 
-
-				M1 = MixMassIntegrator(el, self.low_space.el[e], lambda x: 1, qorder) 
-				M2 = MassIntegrator(self.low_space.el[e], lambda x: 1, qorder) 
-				g = np.dot(M2, phi.GetDof(e))
-
-				A = np.bmat([[K+Ma, M1], [M1.transpose(), np.zeros(M2.shape)]])
-				rhs = np.concatenate((f, g))
-
-				x = np.linalg.solve(A, rhs) 
-				local = x[:el.Nn]
-				phi_star.SetDof(e, local) 
-
+			phi_star = self.PostProcess(self.k, phi, J)
 			return phi_star, J
 		else:
 			return phi, J

@@ -339,7 +339,6 @@ for p in range(0, 6):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f}, m1={:.3e}, m2={:.3e}'.format(p, ooa, mE1, mE2), color))
 
-
 Ne = 6
 print('Hyb VEF:')
 for p in range(0, 6):
@@ -360,7 +359,7 @@ for p in range(1,5):
 	color = 'green'
 	if (abs(ooa-p-1)>.1):
 		color = 'red'
-	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+	print(colored('   p={}, ooa={:.3f} ({:.3e}, {:.3e})'.format(p, ooa, E1, E2), color))
 
 Ne = 5
 print('Full VEFH Alg')
@@ -371,4 +370,4 @@ for p in range(1,5):
 	color = 'green'
 	if (abs(ooa-p-1)>.1):
 		color = 'red'
-	print(colored('   p={}, ooa={:.3f}'.format(p, ooa), color))
+	print(colored('   p={}, ooa={:.3f} ({:.3e}, {:.3e})'.format(p, ooa, E1, E2), color))
