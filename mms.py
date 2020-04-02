@@ -138,7 +138,8 @@ def SolveHybDiffusion(Ne, p):
 	T = GridFunction(l2)
 	T.data = -Ainv*(f + D*Minv*C.transpose()*lam)
 
-	err = T.L2ProjError(Tex, 2*p+1)
+	qorder = max(2, 2*p+1)
+	err = T.L2ProjError(Tex, qorder)
 	merr = np.max(np.fabs(Tex(mspace.x) - lam.data))
 	return err, merr 
 
@@ -337,7 +338,8 @@ for p in range(0, 6):
 	color = 'green'
 	if (abs(ooa-p-2) > .1):
 		color = 'red'
-	print(colored('   p={}, ooa={:.3f}, m1={:.3e}, m2={:.3e}'.format(p, ooa, mE1, mE2), color))
+	print(colored('   p={}, ooa={:.3f}, E=({:.3e}, {:.3e}), m=({:.3e}, {:.3e})'.format(
+		p, ooa, E1, E2, mE1, mE2), color))
 
 Ne = 6
 print('Hyb VEF:')
