@@ -165,7 +165,7 @@ class VEFH(AbstractVEF):
 		self.pp = pp
 		self.pp_type = 'lagrange'
 
-	def Mult(self, psi):
+	def Mult(self, psi, retlam=False):
 		self.qdf.Compute(psi)
 		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf)
 		C1 = MixFaceAssemble(self.J_space, self.m_space, self.edd_constraint, self.qdf)
@@ -204,38 +204,42 @@ class VEFH(AbstractVEF):
 		J.data = W*(Q1 - C1*lam) + X*self.Q0 
 
 		if (self.pp and self.pp_type=='lagrange'):
-			phi_star = GridFunction(self.phi_space)
-			for e in range(self.phi_space.Ne):
-				el = self.phi_space.el[e]
-				s1 = el.CalcShape(-1)
-				s2 = el.CalcShape(1)
-
-				M1 = np.vstack((s1, s2))
-				b1 = lam.GetDof(e)
-
-				p = self.low_space.basis.p 
-				if (p>0):
-					basis = LegendreBasis(self.phi_space.basis.p-2)
-					el2 = Element(basis, el.line) 
-					M2 = MixMassIntegrator(el2, el, lambda x: 1, self.qorder)
-					mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, self.qorder)
-					b2 = np.dot(mixmass, phi.GetDof(e))
-
-					A = np.vstack((M1, M2))
-					b = np.concatenate((b1, b2))
-
-					local = np.linalg.solve(A, b) 
-					phi_star.SetDof(e, local) 
-				else:
-					local = np.linalg.solve(M1, b1)
-					phi_star.SetDof(e, local)
-
-			return phi_star, J
+			phi = self.PostProcessLagrange(phi, J, lam)
 		elif (self.pp and self.pp_type=='vef'):
-			phi_star = self.PostProcess(self.k, phi, J)
-			return phi_star, J
+			phi = self.PostProcess(self.k, phi, J)
+
+		if (retlam):
+			return phi, J, lam 
 		else:
 			return phi, J
+
+	def PostProcessLagrange(self, phi, J, lam):
+		phi_star = GridFunction(self.phi_space)
+		for e in range(self.phi_space.Ne):
+			el = self.phi_space.el[e]
+			s1 = el.CalcShape(-1)
+			s2 = el.CalcShape(1)
+
+			M1 = np.vstack((s1, s2))
+			b1 = lam.GetDof(e)
+
+			p = self.low_space.basis.p 
+			if (p>0):
+				basis = LegendreBasis(self.phi_space.basis.p-2)
+				el2 = Element(basis, el.line) 
+				M2 = MixMassIntegrator(el2, el, lambda x: 1, self.qorder)
+				mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, self.qorder)
+				b2 = np.dot(mixmass, phi.GetDof(e))
+
+				A = np.vstack((M1, M2))
+				b = np.concatenate((b1, b2))
+
+				local = np.linalg.solve(A, b) 
+				phi_star.SetDof(e, local) 
+			else:
+				local = np.linalg.solve(M1, b1)
+				phi_star.SetDof(e, local)
+		return phi_star
 
 	def FormBlockInv(self):
 		W = COOBuilder(self.J_space.Nu)
