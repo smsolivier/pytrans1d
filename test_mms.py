@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 
 from integrators import * 
 from sn import * 
+from s2sa import * 
+from p1sa import * 
 from vef import * 
 import pytest 
 
@@ -113,13 +115,75 @@ def FullVEFH(Ne, p):
 	err = phi.L2Error(phi_ex, 2*p+1)
 	return err 
 
-@pytest.mark.parametrize('Ne,p', [(5,1), (5,2), (5,3)])
-@pytest.mark.parametrize('solver', [H1Diffusion, Transport, FullVEF, FullVEFH])
-def test_ooa(solver, Ne, p):
+def S2SATransport(Ne, p):
+	N = 4
+	leg = LegendreBasis(p) 
+	xe = np.linspace(0,1,Ne+1)
+	space = L2Space(xe, leg)
+
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	eps = 1e-3
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1/eps
+	sigma_s = lambda x: 1/eps - eps
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sn = S2SA(sweep)
+	psi = TVector(space, N)
+	phi = sn.SourceIteration(psi, tol=1e-10)
+
+	return phi.L2Error(phi_ex, 2*p+1)
+
+def P1SATransport(Ne, p):
+	N = 4
+	leg = LegendreBasis(p) 
+	xe = np.linspace(0,1,Ne+1)
+	space = L2Space(xe, leg)
+
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	eps = 1e-3
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1/eps
+	sigma_s = lambda x: 1/eps - eps
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sn = P1SA(sweep)
+	psi = TVector(space, N)
+	phi = sn.SourceIteration(psi, tol=1e-10)
+
+	return phi.L2Error(phi_ex, 2*p+1)	
+
+Ne = 5
+@pytest.mark.parametrize('p', [1, 2, 3])
+@pytest.mark.parametrize('solver', [H1Diffusion, Transport, 
+	S2SATransport, P1SATransport, FullVEF, FullVEFH])
+def test_ooa(solver, p):
 	with warnings.catch_warnings():
 		warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
 
 		E1 = solver(Ne, p)
 		E2 = solver(2*Ne, p)
 	ooa = np.log2(E1/E2)
+	if (abs(p+1-ooa)>.1):
+		print('{:.3e}, {:.3e}'.format(E1, E2))
 	assert(abs(p+1-ooa)<.1)
