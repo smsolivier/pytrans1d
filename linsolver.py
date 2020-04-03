@@ -30,7 +30,7 @@ class BlockLDU(IterativeSolver):
 
 	def Solve(self, A, Ainv, B, C, D, rhs):
 		self.it = 0
-		M = sp.bmat([[A,B], [C,D]]) 
+		M = sp.bmat([[A,B], [C,D]]).tocsc()
 		CAinv = C*Ainv 
 		AinvB = Ainv*B 
 		S = D - C*AinvB 
@@ -49,7 +49,8 @@ class BlockLDU(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p2x2 = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		x, info = spla.gmres(M, rhs, M=p2x2, atol=self.itol, 
+			maxiter=self.maxiter, callback=self.Callback, callback_type='legacy', restart=None)
 
 		return x 
 
@@ -179,8 +180,8 @@ class AMGSolver(IterativeSolver):
 	def Solve(self, A, b):
 		self.it = 0
 		amg = pyamg.ruge_stuben_solver(A)
-		x, info = spla.gmres(A, b, M=amg.aspreconditioner(cycle='V'), 
-			callback=self.Callback, tol=self.itol, maxiter=self.maxiter)
+		x, info = spla.gmres(A.tocsc(), b, M=amg.aspreconditioner(cycle='V'), callback=self.Callback, 
+			callback_type='legacy', atol=self.itol, maxiter=self.maxiter, restart=None)
 
 		return x
 
