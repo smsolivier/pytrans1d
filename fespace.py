@@ -94,6 +94,21 @@ class GridFunction:
 	def Interpolate(self, e, xi):
 		return self.space.el[e].Interpolate(xi, self.GetDof(e))
 
+	def Evaluate(self, x):
+		# determine element where x lies using bisection 
+		e = int(self.space.Ne/2)
+		it = 0
+		while not(x>=self.space.xe[e] and x<=self.space.xe[e+1]):
+			it += 1 
+			if (x>self.space.xe[e+1]):
+				e = e + int((self.space.Ne-e)/2)
+			else:
+				e = e - int(e/2)
+
+		# use inverse map on element to find reference point 
+		xi = self.space.el[e].InverseMap(x)
+		return self.Interpolate(e, xi)
+
 	def InterpolateGrad(self, e, xi):
 		return self.space.el[e].InterpolateGrad(xi, self.GetDof(e))
 		
@@ -123,6 +138,16 @@ class GridFunction:
 		gf = GridFunction(self.space)
 		gf.Project(ex)
 		return self.L2Diff(gf, qorder) 
+
+	def LinfEdgeError(self, ex):
+		E = abs(ex(self.space.xe[0]) - self.Interpolate(0, -1))
+
+		for e in range(self.space.Ne):
+			err = abs(ex(self.space.xe[e+1]) - self.Interpolate(e, 1))
+			if (err>E):
+				E = err 
+
+		return E 
 
 	def L2Diff(self, gf, qorder):
 		from quadrature import quadrature

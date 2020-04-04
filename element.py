@@ -39,9 +39,26 @@ class Element:
 		pgshape = self.CalcPhysGradShape(xi)
 		return np.dot(u, pgshape) 
 
+	def InverseMap(self, x, tol=1e-12, niter=20):
+		xi = 0 
+		for n in range(niter):
+			xi_old = xi 
+			xi = xi_old + 1/self.Jacobian(xi_old)*(x - self.Transform(xi_old))
+
+			diff = abs(self.Transform(xi) - x)
+			if (diff < tol):
+				break 
+
+		if (diff > tol):
+			print('inverse map not converged')
+
+		return xi 
+
 if __name__=='__main__':
 	p = 1 
 	basis = LegendreBasis(p) 
 	el = Element(basis, [0,1]) 
 	print(el.nodes) 
 	print(el.Transform(0))
+
+	print(el.InverseMap(.5))
