@@ -68,15 +68,15 @@ class AbstractVEF(Sn):
 
 		return phi 
 
-	def PostProcess(self, k, phi, J):
-		phi_star = GridFunction(self.phi_space)
+	def PostProcess(self, k, star_space, phi, J):
+		phi_star = GridFunction(star_space)
 		basis = LegendreBasis(k) 
 		lam_space = L2Space(self.space.xe, basis) 
-		for e in range(self.phi_space.Ne):
-			star_el = self.phi_space.el[e] 
+		for e in range(star_space.Ne):
+			star_el = star_space.el[e] 
 			lam_el = lam_space.el[e] 
-			phi_el = self.low_space.el[e]
-			J_el = self.J_space.el[e] 
+			phi_el = phi.space.el[e]
+			J_el = J.space.el[e] 
 
 			K = VEFPoissonIntegrator(star_el, [self.qdf, self.sweeper.sigma_t], self.qorder)
 			Ma = MassIntegrator(star_el, self.sigma_a, self.qorder)
@@ -141,7 +141,7 @@ class VEF(AbstractVEF):
 		J.data = x[:self.J_space.Nu] 
 
 		if (self.pp):
-			phi_star = self.PostProcess(self.k, phi, J) 
+			phi_star = self.PostProcess(self.k, self.phi_space, phi, J) 
 			return phi_star, J
 		else:
 			return phi, J
@@ -204,31 +204,31 @@ class VEFH(AbstractVEF):
 		J.data = W*(Q1 - C1*lam) + X*self.Q0 
 
 		if (self.pp and self.pp_type=='lagrange'):
-			phi = self.PostProcessLagrange(phi, J, lam)
+			phi = self.PostProcessLagrange(self.phi_space, phi, J, lam)
 		elif (self.pp and self.pp_type=='vef'):
-			phi = self.PostProcess(self.k, phi, J)
+			phi = self.PostProcess(self.k, self.phi_space, phi, J)
 
 		if (retlam):
 			return phi, J, lam 
 		else:
 			return phi, J
 
-	def PostProcessLagrange(self, phi, J, lam):
-		phi_star = GridFunction(self.phi_space)
-		for e in range(self.phi_space.Ne):
-			el = self.phi_space.el[e]
+	def PostProcessLagrange(self, star_space, phi, J, lam):
+		phi_star = GridFunction(star_space)
+		for e in range(star_space.Ne):
+			el = star_space.el[e]
 			s1 = el.CalcShape(-1)
 			s2 = el.CalcShape(1)
 
 			M1 = np.vstack((s1, s2))
 			b1 = lam.GetDof(e)
 
-			p = self.low_space.basis.p 
+			p = phi.space.basis.p 
 			if (p>0):
-				basis = LegendreBasis(self.phi_space.basis.p-2)
+				basis = LegendreBasis(star_space.basis.p-2)
 				el2 = Element(basis, el.line) 
 				M2 = MixMassIntegrator(el2, el, lambda x: 1, self.qorder)
-				mixmass = MixMassIntegrator(el2, self.low_space.el[e], lambda x: 1, self.qorder)
+				mixmass = MixMassIntegrator(el2, phi.space.el[e], lambda x: 1, self.qorder)
 				b2 = np.dot(mixmass, phi.GetDof(e))
 
 				A = np.vstack((M1, M2))
