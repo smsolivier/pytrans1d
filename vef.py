@@ -277,6 +277,86 @@ class VEFH(AbstractVEF):
 
 		return W.Get(), X.Get(), Y.Get(), Z.Get()
 
+class VEFH2(VEFH):
+	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
+		VEFH.__init__(self, phi_space, J_space, sweeper, lin_solver, pp)
+
+	def Mult(self, psi, retlam=False):
+		self.qdf.Compute(psi) 
+		qin = BdrFaceAssembleRHS(self.J_space, VEFInflowIntegrator, self.qdf)
+		C1 = MixFaceAssemble(self.J_space, self.m_space, self.edd_constraint, self.qdf)
+		Q1 = self.Q1 + qin
+		G = MixAssemble(self.J_space, self.low_space, MixWeakEddDivIntegrator, self.qdf, self.qorder) 
+
+		Mtinv = self.FormMtInv()
+		S = self.Ma - self.D*Mtinv*G 
+		B = -self.D*Mtinv*C1 
+		C = -self.C2*Mtinv*G
+		D = -self.C2*Mtinv*C1 
+		rhs1 = self.Q0.data - self.D*Mtinv*Q1
+		rhs2 = -self.C2*Mtinv*Q1
+
+		bdr_phi = (Mtinv*G).tolil()
+		bdr_lam = (Mtinv*C1).tolil()
+		bdr_rhs = Mtinv*Q1
+		bdr_phi[0,:] *= -1 
+		bdr_lam[0,:] *= -1
+		bdr_lam[0,0] += self.qdf.EvalG(self.phi_space.bface[0])
+		bdr_lam[-1,-1] += self.qdf.EvalG(self.phi_space.bface[-1])
+		bdr_rhs[0] *= -1 
+		bdr_rhs[0] -= 2*self.qdf.EvalJinBdr(self.phi_space.bface[0])
+		bdr_rhs[-1] -= 2*self.qdf.EvalJinBdr(self.phi_space.bface[-1])
+
+		C = C.tolil()
+		D = D.tolil()
+		C[0,:] = bdr_phi[0,:]
+		C[-1,:] = bdr_phi[-1,:]
+		D[0,:] = bdr_lam[0,:]
+		D[-1,:] = bdr_lam[-1,:]
+		rhs2[0] = bdr_rhs[0]
+		rhs2[-1] = bdr_rhs[-1]
+
+		M = sp.bmat([[S, B], [C, D]])
+		rhs = np.concatenate((rhs1, rhs2))
+
+		x = spla.spsolve(M.tocsc(), rhs) 
+		phi = GridFunction(self.low_space)
+		J = GridFunction(self.J_space)
+		lam = GridFunction(self.m_space)
+		phi.data = x[:self.low_space.Nu]
+		lam.data = x[self.low_space.Nu:]
+
+		J.data = Mtinv*(Q1 - G*phi.data - C1*lam.data)
+
+		if (self.pp and self.pp_type=='lagrange'):
+			phi = self.PostProcessLagrange(self.phi_space, phi, J, lam)
+		elif (self.pp and self.pp_type=='vef'):
+			phi = self.PostProcess(self.k, self.phi_space, phi, J)
+
+		if (retlam):
+			return phi, J, lam
+		else:
+			return phi, J 
+
+	def FormMtInv(self):
+		M = COOBuilder(self.J_space.Nu)
+
+		for e in range(self.J_space.Ne):
+			el = self.J_space.el[e]
+
+			Mt = MassIntegrator(el, self.sweeper.sigma_t, self.qorder)
+			if (el.ElNo==0):
+				B = MLBdrIntegrator(self.J_space.bface[0], self.qdf)
+				Mt += B 
+			elif (el.ElNo==self.J_space.Nu-1):
+				B = MLBdrIntegrator(self.J_space.bface[-1], self.qdf)
+				Mt += B 
+			Mtinv = np.linalg.inv(Mt)
+
+			M[self.J_space.dofs[e], self.J_space.dofs[e]] = Mtinv 
+
+		return M.Get()
+
 if __name__=='__main__':
 	Ne = 10
 	p = 2
@@ -310,7 +390,7 @@ if __name__=='__main__':
 	# block = BlockDiag(ltol, maxiter, inner, False)
 	vef = VEF(phi_space, J_space, sweep, block, pp)
 	amg = AMGSolver(ltol, maxiter, inner, False)
-	vefh = VEFH(phi_space, J_space, sweep, amg, pp)
+	vefh = VEFH2(phi_space, J_space, sweep, None, False)
 	psi = TVector(phi_space, N)
 	psi.Project(lambda x, mu: 1)
 	phi = vef.SourceIteration(psi)
