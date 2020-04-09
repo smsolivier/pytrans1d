@@ -34,11 +34,12 @@ class AbstractVEF(Sn):
 
 		self.qdf = QDFactors(self.space, self.N, self.sweeper.psi_in) 
 		self.k = 0
+		self.linit = []
 
 	def SourceIteration(self, psi, niter=50, tol=1e-6):
 		phi = GridFunction(self.phi_space)
 		phi_old = GridFunction(self.phi_space)
-		linits = 0
+		self.linit = []
 		for n in range(niter):
 			start = time.time() 
 			phi_old.data = phi.data.copy() 
@@ -46,7 +47,7 @@ class AbstractVEF(Sn):
 			phi, J = self.Mult(psi)
 			norm = phi.L2Diff(phi_old, 2*self.p+1)
 			if (self.lin_solver!=None):
-				linits += self.lin_solver.it 
+				self.linit.append(self.lin_solver.it)
 
 			if (self.LOUD):
 				el = time.time() - start 
@@ -61,7 +62,8 @@ class AbstractVEF(Sn):
 				break 
 
 		if (self.LOUD and self.lin_solver!=None):
-			print('avg linear iters = {:.2f}'.format(linits/(n+1)))
+			self.avg_linit = np.mean(self.linit) 
+			print('avg linear iters = {:.2f}'.format(self.avg_linit))
 
 		if (norm > tol):
 			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
