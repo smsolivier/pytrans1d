@@ -7,6 +7,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla 
 import pyamg 
 import time 
+from termcolor import colored
 
 class IterativeSolver:
 	def __init__(self, itol, maxiter, LOUD=False):
@@ -49,7 +50,7 @@ class BlockLDU(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p2x2 = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p2x2, atol=self.itol, 
+		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, 
 			maxiter=self.maxiter, callback=self.Callback, callback_type='legacy', restart=None)
 
 		return x 
@@ -181,7 +182,12 @@ class AMGSolver(IterativeSolver):
 		self.it = 0
 		amg = pyamg.ruge_stuben_solver(A)
 		x, info = spla.gmres(A.tocsc(), b, M=amg.aspreconditioner(cycle='V'), callback=self.Callback, 
-			callback_type='legacy', atol=self.itol, maxiter=self.maxiter, restart=None)
+			callback_type='legacy', tol=self.itol, maxiter=self.maxiter, restart=None)
+
+		res = A*x - b 
+		norm = np.linalg.norm(res)
+		if (norm>self.itol):
+			print(colored('residual = {:.3e}'.format(norm), 'red'))
 
 		return x
 
