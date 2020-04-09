@@ -86,8 +86,8 @@ def SolveVEF(Ne, p):
 
 def SolveHybDiffusion(Ne, p):
 	xe = np.linspace(0,1,Ne+1)
-	leg = LegendreBasis(p)
-	lob = LobattoBasis(p+1)
+	leg = LegendreBasis(p-1)
+	lob = LobattoBasis(p)
 	mcol = LagrangeBasis(1)
 	l2 = L2Space(xe, leg)
 	h1 = L2Space(xe, lob) 
@@ -124,7 +124,7 @@ def SolveHybDiffusion(Ne, p):
 
 	qorder = max(2, 2*p+1)
 	err = T.L2ProjError(Tex, qorder)
-	merr = np.max(np.fabs(Tex(mspace.x) - lam.data))
+	merr = lam.LinfEdgeError(Tex)
 	return err, merr 
 
 def SolveHybVEF(Ne, p):
@@ -237,12 +237,12 @@ for p in range(1, 6):
 
 Ne = 10
 print('Hyb Diffusion:')
-for p in range(0, 6):
+for p in range(1, 6):
 	E1, mE1 = SolveHybDiffusion(Ne, p)
 	E2, mE2 = SolveHybDiffusion(2*Ne, p)
 	ooa = np.log(E1/E2)/np.log(2)
 	color = 'green'
-	if (abs(ooa-p-2) > .1):
+	if (abs(ooa-p-1) > .1):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f}, E=({:.3e}, {:.3e}), m=({:.3e}, {:.3e})'.format(
 		p, ooa, E1, E2, mE1, mE2), color))
