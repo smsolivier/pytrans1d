@@ -149,6 +149,14 @@ class GridFunction:
 
 		return E 
 
+	def L2EdgeError(self, ex):
+		err = (ex(self.space.xe[0]) - self.Interpolate(0,-1))**2
+
+		for e in range(self.space.Ne):
+			err += (ex(self.space.xe[e+1]) - self.Interpolate(e, 1))**2
+
+		return np.sqrt(err)
+
 	def L2Diff(self, gf, qorder):
 		from quadrature import quadrature
 		l2 = 0 
