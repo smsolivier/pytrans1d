@@ -118,6 +118,7 @@ class VEF(AbstractVEF):
 			self.low_space = phi_space 
 		self.lin_solver = lin_solver 
 		self.pp = pp 
+		self.scl = False
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi) 
@@ -134,7 +135,10 @@ class VEF(AbstractVEF):
 			x = spla.spsolve(A, rhs) 
 
 		else:
-			Ainv = sp.diags(1/(self.Mtl + B).diagonal())
+			if (self.scl):
+				Ainv = self.AssembleMtBInvSCLump()
+			else:
+				Ainv = sp.diags(1/(self.Mtl + B).diagonal())
 			x = self.lin_solver.Solve(Mt, Ainv, G, self.D, self.Ma, rhs)
 
 		phi = GridFunction(self.low_space)
@@ -147,6 +151,51 @@ class VEF(AbstractVEF):
 			return phi_star, J
 		else:
 			return phi, J
+
+	def AssembleMtBInvSCLump(self):
+		A = COOBuilder(self.J_space.nint)
+		Ainv = COOBuilder(self.J_space.nint)
+		B = COOBuilder(self.J_space.nint, self.J_space.nedge)
+		C = COOBuilder(self.J_space.nedge, self.J_space.nint)
+		D = COOBuilder(self.J_space.nedge, self.J_space.nedge)
+		for e in range(self.J_space.Ne):
+			elmat = MassIntegrator(self.J_space.el[e], self.sweeper.sigma_t, self.qorder)
+			if (e==0):
+				bdr = MLBdrIntegrator(self.J_space.bface[0], self.qdf)
+				elmat += bdr
+			elif (e==self.J_space.Ne-1):
+				bdr = MLBdrIntegrator(self.J_space.bface[-1], self.qdf)
+				elmat += bdr
+			elmat_i_inv = np.linalg.inv(elmat[1:-1,1:-1])
+			A[self.J_space.int_dof[e], self.J_space.int_dof[e]] = elmat[1:-1,1:-1]
+			Ainv[self.J_space.int_dof[e], self.J_space.int_dof[e]] = elmat_i_inv 
+			B[self.J_space.int_dof[e], self.J_space.edge_dof[e]] = elmat[1:-1,[0,-1]]
+			C[self.J_space.edge_dof[e], self.J_space.int_dof[e]] = elmat[[0,-1],1:-1]
+			d = np.zeros((2,2))
+			d[0,0] = elmat[0,0] 
+			d[0,-1] = elmat[0,-1] 
+			d[-1,0] = elmat[-1,0]
+			d[-1,-1] = elmat[-1,-1] 
+			D[self.J_space.edge_dof[e], self.J_space.edge_dof[e]] = d 
+
+		A = A.Get()
+		Ainv = Ainv.Get()
+		B = B.Get()
+		C = C.Get()
+		D = D.Get()
+
+		S = D - C*Ainv*B 
+		Sinv = sp.diags(1/np.squeeze(np.asarray(S.sum(axis=1))))
+
+		W = Ainv + Ainv*B*Sinv*C*Ainv 
+		X = -Ainv*B*Sinv
+		Y = -Sinv*C*Ainv 
+		Z = Sinv 
+
+		M = sp.bmat([[A,B], [C,D]]).tocsc()
+		Minv = sp.bmat([[W,X], [Y,Z]]).tocsc()
+
+		return Minv[self.J_space.sci,:][:,self.J_space.sci]
 
 class VEFH(AbstractVEF):
 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None, pp=True):
@@ -391,10 +440,11 @@ if __name__=='__main__':
 	# block = BlockTri(ltol, maxiter, inner, False)
 	# block = BlockDiag(ltol, maxiter, inner, False)
 	vef = VEF(phi_space, J_space, sweep, block, pp)
-	amg = AMGSolver(ltol, maxiter, inner, False)
-	vefh = VEFH2(phi_space, J_space, sweep, None, False)
 	psi = TVector(phi_space, N)
 	psi.Project(lambda x, mu: 1)
 	phi = vef.SourceIteration(psi)
-	psi.Project(lambda x, mu: 1)
-	phi = vefh.SourceIteration(psi) 
+
+	# amg = AMGSolver(ltol, maxiter, inner, False)
+	# vefh = VEFH2(phi_space, J_space, sweep, None, False)
+	# psi.Project(lambda x, mu: 1)
+	# phi = vefh.SourceIteration(psi) 

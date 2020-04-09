@@ -70,13 +70,28 @@ class H1Space(FESpace):
 		self.Nu = self.Ne*basis.p + 1
 		self.x = np.zeros(self.Nu) 
 
+		self.edge_dof = []
+		self.int_dof = []
+		self.nint = 0 
+		self.nedge = 1
+		self.sci = [(basis.N-2)*self.Ne]
+
 		count = 0 
+		int_count = 0 
 		for e in range(self.Ne):
 			self.el.append(Element(basis, [self.xe[e], self.xe[e+1]], e))
 			dofs = np.arange(count, count+basis.N)
 			self.x[dofs] = self.el[e].nodes 
 			self.dofs.append(dofs) 
 			count += basis.N - 1 
+			self.edge_dof.append([e, e+1])
+			self.int_dof.append(np.arange(int_count, int_count+basis.N-2).tolist())
+			self.sci += np.arange(int_count, int_count+basis.N-2).tolist() + [(basis.N-2)*self.Ne+e+1]
+			int_count += basis.N-2
+			self.nint += len(dofs[1:-1])
+			self.nedge += 1 
+
+		assert(self.nint + self.nedge == self.Nu)
 
 		self.BuildFaces()
 
