@@ -26,6 +26,29 @@ def SolveH1Diffusion(Ne, p):
 
 	return err 
 
+def SolveMixDiffusion(Ne, p):
+	xe = np.linspace(0,1,Ne+1)
+	lob = LobattoBasis(p)
+	leg = LegendreBasis(p-1)
+	h1 = H1Space(xe, lob)
+	l2 = L2Space(xe, leg)
+
+	qorder = 2*p+1
+	Mt = Assemble(h1, MassIntegrator, lambda x: 1, qorder)
+	Ma = Assemble(l2, MassIntegrator, lambda x: .1, qorder)
+	D = MixAssemble(l2, h1, MixDivIntegrator, 1, qorder)
+
+	A = sp.bmat([[-Mt, D.transpose()], [D, Ma]])
+	f = AssembleRHS(l2, DomainIntegrator, lambda x: (np.pi**2 + .1)*np.sin(np.pi*x), qorder)
+	rhs = np.concatenate((np.zeros(h1.Nu), f))
+
+	x = spla.spsolve(A.tocsc(), rhs)
+
+	T = GridFunction(l2)
+	T.data = x[h1.Nu:]
+
+	return T.L2Error(lambda x: np.sin(np.pi*x), qorder)
+
 def SolveVEF(Ne, p):
 	N = 8 
 	leg = LegendreBasis(p-1)
@@ -220,6 +243,17 @@ for p in range(1, 6):
 	ooa = np.log(E1/E2)/np.log(2)
 	color = 'green'
 	if (abs(ooa-p-1) > .1):
+		color = 'red'
+	print(colored('   p={}, ooa={:.3f} ({:.3e}, {:.3e})'.format(p, ooa, E1, E2), color))
+
+Ne = 4 
+print('mix diffusion')
+for p in range(1,6):
+	E1 = SolveMixDiffusion(Ne, p)
+	E2 = SolveMixDiffusion(2*Ne, p)
+	ooa = np.log2(E1/E2)
+	color = 'green'
+	if (abs(ooa-p) > .1):
 		color = 'red'
 	print(colored('   p={}, ooa={:.3f} ({:.3e}, {:.3e})'.format(p, ooa, E1, E2), color))
 
