@@ -116,7 +116,6 @@ class VEF(AbstractVEF):
 		else:
 			AbstractVEF.__init__(self, phi_space, J_space, sweeper, lin_solver)
 			self.low_space = phi_space 
-		self.lin_solver = lin_solver 
 		self.pp = pp 
 		self.scl = False
 
