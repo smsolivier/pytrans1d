@@ -47,6 +47,20 @@ class FESpace:
 		self.bface.append(FaceTrans([self.el[0]], -1))
 		self.bface.append(FaceTrans([self.el[-1]], 1))
 
+	def InverseMap(self, x):
+		# determine element where x lies using bisection 
+		e = int(self.Ne/2)
+		it = 0
+		while not(x>=self.xe[e] and x<=self.xe[e+1]):
+			it += 1 
+			if (x>self.xe[e+1]):
+				e = e + int((self.Ne-e)/2)
+			else:
+				e = e - int(e/2)
+
+		# use inverse map on element to find reference point 
+		return e, self.el[e].InverseMap(x)
+
 class L2Space(FESpace):
 	def __init__(self, xe, basis):
 		FESpace.__init__(self, xe, basis) 
@@ -110,18 +124,7 @@ class GridFunction:
 		return self.space.el[e].Interpolate(xi, self.GetDof(e))
 
 	def Evaluate(self, x):
-		# determine element where x lies using bisection 
-		e = int(self.space.Ne/2)
-		it = 0
-		while not(x>=self.space.xe[e] and x<=self.space.xe[e+1]):
-			it += 1 
-			if (x>self.space.xe[e+1]):
-				e = e + int((self.space.Ne-e)/2)
-			else:
-				e = e - int(e/2)
-
-		# use inverse map on element to find reference point 
-		xi = self.space.el[e].InverseMap(x)
+		e, xi = self.space.InverseMap(x)
 		return self.Interpolate(e, xi)
 
 	def InterpolateGrad(self, e, xi):
