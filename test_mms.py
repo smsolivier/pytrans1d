@@ -8,6 +8,7 @@ from sn import *
 from s2sa import * 
 from p1sa import * 
 from vef import * 
+from qd import * 
 import pytest 
 
 import warnings 
@@ -204,12 +205,46 @@ def P1SATransport(Ne, p):
 	psi = TVector(space, N)
 	phi = sn.SourceIteration(psi, tol=1e-10)
 
-	return phi.L2Error(phi_ex, 2*p+1)	
+	return phi.L2Error(phi_ex, 2*p+1)
 
-Ne = 5
+def FullQD(Ne, p):
+	N = 6
+	leg = LegendreBasis(p)
+	xe = np.linspace(0,1, Ne+1)
+	space = L2Space(xe, leg) 
+
+	alpha = 1 
+	beta = .1
+	gamma = 0
+	delta = 1
+	eta = 0
+	eps = 1e-1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1/eps
+	sigma_s = lambda x: 1/eps - eps
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	qd = QD(space, space, sweep)
+	p1sa = P1SA(sweep) 
+	psi = TVector(space, N)
+	phi_sn = p1sa.SourceIteration(psi, tol=1e-12)
+	phi, J = qd.Mult(psi)
+	# plt.semilogy(space.x, np.fabs(phi.data - phi_sn.data))
+	# plt.show()
+
+	return phi.L2Error(phi_ex, 2*p+1)
+
+Ne = 10
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
 @pytest.mark.parametrize('solver', [H1Diffusion, Transport, 
-	S2SATransport, P1SATransport, FullVEF, FullVEFH, FullVEFH2])
+	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
+	FullVEFH2, FullQD])
 def test_ooa(solver, p):
 	with warnings.catch_warnings():
 		warnings.filterwarnings('ignore', category=PendingDeprecationWarning)

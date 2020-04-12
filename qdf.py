@@ -69,6 +69,57 @@ class QDFactors:
 
 		return t/b
 
+	def EvalGInt(self, el, xi):
+		t = 0 
+		phi = self.phi.Interpolate(el.ElNo, xi)
+		for a in range(self.N):
+			mu = self.mu[a]
+			w = self.w[a] 
+			psi_at_ip = self.psi.GetAngle(a).Interpolate(el.ElNo, xi)
+			t += abs(mu) * w * psi_at_ip 
+
+		return t/phi 
+
+	def EvalCp(self, face):
+		if (face.nor>0):
+			el = face.el1 
+			xi = face.IPTrans(0)
+		else:
+			el = face.el2 
+			xi = face.IPTrans(1)
+
+		t = 0 
+		b = 0 
+		for a in range(self.N):
+			mu = self.mu[a] 
+			w = self.w[a] 
+			if (face.nor*mu>0):
+				psi_at_ip = self.psi.GetAngle(a).Interpolate(el.ElNo, xi)
+				t += mu*face.nor * w * psi_at_ip
+				b += w * psi_at_ip
+
+		return abs(t/b) 
+
+	def EvalCm(self, face):
+		if (face.nor<0):
+			el = face.el1 
+			xi = face.IPTrans(0)
+		else:
+			el = face.el2 
+			xi = face.IPTrans(1)
+
+		t = 0 
+		b = 0 
+		for a in range(self.N):
+			mu = self.mu[a] 
+			w = self.w[a] 
+			if (face.nor*mu<0):
+				psi_at_ip = self.psi.GetAngle(a).Interpolate(el.ElNo, xi)
+				t += mu*face.nor * w * psi_at_ip
+				b += w * psi_at_ip
+
+		return abs(t/b) 
+
 	def EvalJinBdr(self, face_t):
 		xi1 = face_t.IPTrans(0)
 		x = face_t.el1.Transform(xi1)
@@ -78,3 +129,13 @@ class QDFactors:
 				Jin += face_t.nor*self.mu[a] * self.w[a] * self.psi_in(x,self.mu[a])
 
 		return Jin
+
+	def EvalPhiInBdr(self, face_t):
+		xi1 = face_t.IPTrans(0)
+		x = face_t.el1.Transform(xi1)
+		phi_in = 0 
+		for a in range(self.N):
+			if (self.mu[a]*face_t.nor<0):
+				phi_in += self.w[a] * self.psi_in(x,self.mu[a])
+
+		return phi_in
