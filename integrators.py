@@ -141,7 +141,7 @@ def MixDivIntegrator(el1, el2, c, qorder):
 	for n in range(len(w)):
 		s = el1.CalcShape(ip[n]) 
 		g = el2.CalcPhysGradShape(ip[n]) 
-		elmat += np.outer(s, g) * w[n] * el1.Jacobian(ip[n]) 
+		elmat += np.outer(s, g) * w[n] * el1.Jacobian(ip[n]) * c
 
 	return elmat 
 
@@ -152,7 +152,7 @@ def WeakMixDivIntegrator(el1, el2, c, qorder):
 	for n in range(len(w)):
 		g = el1.CalcPhysGradShape(ip[n]) 
 		s = el2.CalcShape(ip[n]) 
-		elmat -= np.outer(g, s) * w[n] * el2.Jacobian(ip[n]) 
+		elmat -= np.outer(g, s) * w[n] * el2.Jacobian(ip[n]) * c
 
 	return elmat 
 
