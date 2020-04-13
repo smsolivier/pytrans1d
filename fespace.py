@@ -17,7 +17,6 @@ class FaceTrans:
 		else:
 			self.boundary = True 
 			self.el2 = els[0]
-		self.boundary = False 
 		if (edge==1):
 			self.ip = [1, -1] 
 		elif (edge==-1):
@@ -29,6 +28,10 @@ class FaceTrans:
 
 	def IPTrans(self, e):
 		return self.ip[e] 
+
+	def __repr__(self):
+		return 'e = {}, e\' = {}, bdr = {}, nor = {}'.format(
+			self.el1.ElNo, self.el2.ElNo, self.boundary, self.nor)
 
 class FESpace:
 	def __init__(self, xe, basis):
