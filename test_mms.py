@@ -215,9 +215,9 @@ def FullQD(Ne, p):
 
 	alpha = 1 
 	beta = .1
-	gamma = 0
-	delta = 1
-	eta = 0
+	gamma = .1
+	delta = 10
+	eta = .1
 	eps = 1e-1
 	L = 1 + 2*eta
 	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
@@ -231,12 +231,8 @@ def FullQD(Ne, p):
 
 	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
 	qd = QD(space, space, sweep)
-	p1sa = P1SA(sweep) 
 	psi = TVector(space, N)
-	phi_sn = p1sa.SourceIteration(psi, tol=1e-12)
-	phi, J = qd.Mult(psi)
-	# plt.semilogy(space.x, np.fabs(phi.data - phi_sn.data))
-	# plt.show()
+	phi = qd.SourceIteration(psi, tol=1e-12)
 
 	return phi.L2Error(phi_ex, 2*p+1)
 
@@ -253,6 +249,6 @@ def test_ooa(solver, p):
 		E1 = solver(Ne, p)
 		E2 = solver(2*Ne, p)
 	ooa = np.log2(E1/E2)
-	if (abs(p+1-ooa)>.1):
+	if (abs(p+1-ooa)>.15):
 		print('{:.3e}, {:.3e}'.format(E1, E2))
 	assert(abs(p+1-ooa)<.15)
