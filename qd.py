@@ -196,7 +196,7 @@ if __name__=='__main__':
 	if (len(sys.argv)>2):
 		p = int(sys.argv[2])
 	N = 16
-	quad = LegendreQuad(N)
+	quad = DoubleLegendreQuad(N)
 	xe = np.linspace(0,1, Ne+1)
 	leg = LegendreBasis(p)
 	space = L2Space(xe, leg)
