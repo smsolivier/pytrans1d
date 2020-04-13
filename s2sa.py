@@ -61,6 +61,7 @@ if __name__=='__main__':
 	Ne = 100 
 	p = 1
 	N = 8
+	quad = LegendreQuad(N)
 	xe = np.linspace(0,1,Ne+1)
 	leg = LegendreBasis(p) 
 	space = L2Space(xe, leg) 
@@ -71,9 +72,9 @@ if __name__=='__main__':
 	Q = lambda x, mu: eps 
 	psi_in = lambda x, mu: 0 
 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_in)
 	p1sa = S2SA(sweep) 
-	psi = TVector(space, N) 
+	psi = TVector(space, quad) 
 	phi = p1sa.SourceIteration(psi)
 
 	plt.plot(space.x, phi.data, '-o')

@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 
 from quadrature import quadrature
 from integrators import * 
+from angle_quad import * 
 
 class AbstractSweeper:
-	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True):
+	def __init__(self, space, quad, sigma_t, sigma_s, Q, psi_in, LOUD=True):
 		self.space = space 
-		self.N = N 
-		self.mu, self.w = quadrature.Get(self.N) 
+		self.N = quad.N 
+		self.quad = quad 
+		self.mu = self.quad.mu
+		self.w = self.quad.w 
 		self.sigma_t = sigma_t 
 		self.sigma_s = sigma_s 
 		self.Q = Q 
@@ -25,8 +28,8 @@ class AbstractSweeper:
 		return scat 
 
 class DirectSweeper(AbstractSweeper):
-	def __init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD=True):
-		AbstractSweeper.__init__(self, space, N, sigma_t, sigma_s, Q, psi_in, LOUD)
+	def __init__(self, space, quad, sigma_t, sigma_s, Q, psi_in, LOUD=True):
+		AbstractSweeper.__init__(self, space, quad, sigma_t, sigma_s, Q, psi_in, LOUD)
 
 		p = self.space.basis.p
 		self.Mt = Assemble(self.space, MassIntegrator, self.sigma_t, 2*p+1)

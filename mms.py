@@ -51,6 +51,7 @@ def SolveMixDiffusion(Ne, p):
 
 def SolveVEF(Ne, p):
 	N = 8 
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p-1)
 	leg2 = LegendreBasis(p)
 	lob = LobattoBasis(p) 
@@ -58,7 +59,7 @@ def SolveVEF(Ne, p):
 	space = L2Space(xe, leg2)
 	phi_space = L2Space(xe, leg)
 	J_space = H1Space(xe, lob) 
-	psi = TVector(space, N)
+	psi = TVector(space, quad)
 	alpha = 1 
 	beta = .1
 	gamma = 1 
@@ -70,7 +71,7 @@ def SolveVEF(Ne, p):
 	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*x*(1-x) + delta 
 	J_ex = lambda x: beta/3*np.sin(2*np.pi*x) 
 	psi.Project(psi_ex)
-	qdf = QDFactors(space, N, psi_ex) 
+	qdf = QDFactors(space, quad, psi_ex) 
 	qdf.Compute(psi) 
 	sigma_t = lambda x: 1 
 	sigma_s = lambda x: .1
@@ -152,6 +153,7 @@ def SolveHybDiffusion(Ne, p):
 
 def SolveHybVEF(Ne, p):
 	N = 8 
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p)
 	leg2 = LegendreBasis(p+1)
 	lob = LobattoBasis(p+1) 
@@ -161,7 +163,7 @@ def SolveHybVEF(Ne, p):
 	phi_space = L2Space(xe, leg)
 	J_space = L2Space(xe, lob) 
 	m_space = H1Space(xe, lag) 
-	psi = TVector(space, N)
+	psi = TVector(space, quad)
 	alpha = 1 
 	beta = .1
 	gamma = 1
@@ -172,7 +174,7 @@ def SolveHybVEF(Ne, p):
 		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
 	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta 
 	psi.Project(psi_ex)
-	qdf = QDFactors(space, N, psi_ex) 
+	qdf = QDFactors(space, quad, psi_ex) 
 	qdf.Compute(psi) 
 	sigma_t = lambda x: 1 
 	sigma_s = lambda x: .1

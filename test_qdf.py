@@ -95,13 +95,14 @@ def test_quad_spat():
 	assert(qdf.EvalCm(face)==pytest.approx(abs(Jr(xf)/phir(xf)), abs=1e-2))
 
 N = 32
+quad = LegendreQuad(N)
 Ne = 25
 p = 5
 leg = LegendreBasis(p)
 xe = np.linspace(0,1, Ne+1)
 space = L2Space(xe, leg) 
-psi = TVector(space, N)
+psi = TVector(space, quad)
 psi_in = lambda x, mu: 0 
-qdf = QDFactors(space, N, psi_in) 
+qdf = QDFactors(space, quad, psi_in) 
 psi.Project(lambda x, mu: 1)
 qdf.Compute(psi) 

@@ -8,10 +8,10 @@ import time
 from termcolor import colored
 
 class TVector:
-	def __init__(self, space, N):
-		self.N = N
-		self.mu, self.w = quadrature.Get(N)
+	def __init__(self, space, quad):
+		self.N = quad.N
 		self.space = space 
+		self.quad = quad 
 		self.gf = [] 
 		for n in range(self.N):
 			self.gf.append(GridFunction(self.space))
@@ -25,7 +25,7 @@ class TVector:
 
 	def Project(self, f):
 		for a in range(self.N):
-			spat = lambda x: f(x, self.mu[a])
+			spat = lambda x: f(x, self.quad.mu[a])
 			self.gf[a].Project(spat) 
 
 class Sn:
@@ -77,15 +77,16 @@ if __name__=='__main__':
 	Ne = 10
 	p = 4
 	N = 8
+	quad = LegendreQuad(N)
 	basis = LegendreBasis(p)
 	xe = np.linspace(0,1,Ne+1)
 	space = L2Space(xe, basis) 
-	psi = TVector(space, N) 
+	psi = TVector(space, quad) 
 	sigma_t = lambda x: 1 
 	sigma_s = lambda x: .9
 	Q = lambda x, mu: (mu*np.pi*np.cos(np.pi*x) + (sigma_t(x)-sigma_s(x))*np.sin(np.pi*x))/2
 	psi_in = lambda x, mu: 0 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_in)
 	sn = Sn(sweep) 
 	phi = sn.SourceIteration(psi)
 	phi_ex = lambda x: np.sin(np.pi*x) 

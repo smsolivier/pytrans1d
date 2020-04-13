@@ -32,7 +32,7 @@ class AbstractVEF(Sn):
 			self.Q0 += AssembleRHS(phi_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*self.w[a]
 			self.Q1 += AssembleRHS(J_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*mu*self.w[a]
 
-		self.qdf = QDFactors(self.space, self.N, self.sweeper.psi_in) 
+		self.qdf = QDFactors(self.space, self.sweeper.quad, self.sweeper.psi_in) 
 		self.k = 0
 		self.linit = []
 
@@ -415,6 +415,7 @@ if __name__=='__main__':
 	if (len(sys.argv)>2):
 		p = int(sys.argv[2])
 	N = 8
+	quad = LegendreQuad(N)
 	h = 1
 	L = Ne*h
 	xe = np.linspace(0,L,Ne+1)
@@ -427,7 +428,7 @@ if __name__=='__main__':
 	sigma_s = lambda x: 1/eps - eps 
 	Q = lambda x, mu: eps
 	psi_in = lambda x, mu: 0
-	sweep = DirectSweeper(phi_space, N, sigma_t, sigma_s, Q, psi_in)
+	sweep = DirectSweeper(phi_space, quad, sigma_t, sigma_s, Q, psi_in)
 	sn = Sn(sweep) 
 	ltol = 1e-8
 	inner = 1
@@ -439,7 +440,7 @@ if __name__=='__main__':
 	# block = BlockTri(ltol, maxiter, inner, False)
 	# block = BlockDiag(ltol, maxiter, inner, False)
 	vef = VEF(phi_space, J_space, sweep, block, pp)
-	psi = TVector(phi_space, N)
+	psi = TVector(phi_space, quad)
 	psi.Project(lambda x, mu: 1)
 	phi = vef.SourceIteration(psi)
 

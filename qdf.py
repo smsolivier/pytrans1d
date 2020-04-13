@@ -7,10 +7,12 @@ from fespace import *
 from quadrature import quadrature 
 
 class QDFactors:
-	def __init__(self, tspace, N, psi_in=None):
+	def __init__(self, tspace, quad, psi_in=None):
 		self.space = tspace 
-		self.N = N 
-		self.mu, self.w = quadrature.Get(self.N) 
+		self.N = quad.N
+		self.quad = quad 
+		self.mu = quad.mu
+		self.w = quad.w 
 		self.psi_in = psi_in 
 		if (self.psi_in==None):
 			self.psi_in = lambda x, mu: 0 

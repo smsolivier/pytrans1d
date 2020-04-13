@@ -119,7 +119,7 @@ class AbstractQD(Sn):
 			self.Q0 += AssembleRHS(phi_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*self.w[a]
 			self.Q1 += AssembleRHS(J_space, DomainIntegrator, lambda x: sweeper.Q(x,mu), qorder)*mu*self.w[a]
 
-		self.qdf = QDFactors(self.space, self.N, self.sweeper.psi_in) 
+		self.qdf = QDFactors(self.space, self.sweeper.quad, self.sweeper.psi_in) 
 		self.linit = [] 
 
 	def SourceIteration(self, psi, niter=50, tol=1e-6):
@@ -196,6 +196,7 @@ if __name__=='__main__':
 	if (len(sys.argv)>2):
 		p = int(sys.argv[2])
 	N = 16
+	quad = LegendreQuad(N)
 	xe = np.linspace(0,1, Ne+1)
 	leg = LegendreBasis(p)
 	space = L2Space(xe, leg)
@@ -206,8 +207,8 @@ if __name__=='__main__':
 
 	Q = lambda x, mu: eps
 	psi_in = lambda x, mu: 0
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in)
-	psi = TVector(space, N)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_in)
+	psi = TVector(space, quad)
 	qd = QD(space, space, sweep)
 	phi = qd.SourceIteration(psi, tol=1e-12) 
 	phi_sn = qd.ComputeScalarFlux(psi) 

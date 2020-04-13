@@ -33,15 +33,16 @@ def H1Diffusion(Ne, p):
 
 def Transport(Ne, p):
 	N = 8
+	quad = LegendreQuad(N)
 	basis = LegendreBasis(p)
 	xe = np.linspace(0,1,Ne+1)
 	space = L2Space(xe, basis) 
-	psi = TVector(space, N) 
+	psi = TVector(space, quad) 
 	sigma_t = lambda x: 1 
 	sigma_s = lambda x: .9
 	Q = lambda x, mu: (mu*np.pi*np.cos(np.pi*x) + (sigma_t(x)-sigma_s(x))*np.sin(np.pi*x))/2
 	psi_in = lambda x, mu: 0 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in, False)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_in, False)
 	sn = Sn(sweep) 
 	phi = sn.SourceIteration(psi, tol=1e-12)
 	phi_ex = lambda x: np.sin(np.pi*x) 
@@ -50,6 +51,7 @@ def Transport(Ne, p):
 
 def FullVEF(Ne, p):
 	N = 8 
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p-1)
 	lob = LobattoBasis(p)
 	tleg = LegendreBasis(p) 
@@ -73,10 +75,10 @@ def FullVEF(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(tspace, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	block = BlockLDU(1e-12, 100, 1, False)
 	vef = VEF(phi_space, J_space, sweep, None, True)
-	psi = TVector(tspace, N)
+	psi = TVector(tspace, quad)
 	phi = vef.SourceIteration(psi)
 
 	err = phi.L2Error(phi_ex, 2*p+1)
@@ -84,6 +86,7 @@ def FullVEF(Ne, p):
 
 def FullVEFH(Ne, p):
 	N = 8 
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p-1)
 	lob = LobattoBasis(p)
 	tleg = LegendreBasis(p) 
@@ -107,10 +110,10 @@ def FullVEFH(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(tspace, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	amg = AMGSolver(1e-12, 100, 1)
 	vef = VEFH(phi_space, J_space, sweep, amg, True)
-	psi = TVector(tspace, N)
+	psi = TVector(tspace, quad)
 	phi = vef.SourceIteration(psi)
 
 	err = phi.L2Error(phi_ex, 2*p+1)
@@ -118,6 +121,7 @@ def FullVEFH(Ne, p):
 
 def FullVEFH2(Ne, p):
 	N = 8 
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p-1)
 	lob = LobattoBasis(p)
 	tleg = LegendreBasis(p) 
@@ -141,9 +145,9 @@ def FullVEFH2(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(tspace, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(tspace, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	vef = VEFH2(phi_space, J_space, sweep, None, True)
-	psi = TVector(tspace, N)
+	psi = TVector(tspace, quad)
 	phi = vef.SourceIteration(psi) 
 
 	err = phi.L2Error(phi_ex, 2*p+1)
@@ -151,6 +155,7 @@ def FullVEFH2(Ne, p):
 
 def S2SATransport(Ne, p):
 	N = 4
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p) 
 	xe = np.linspace(0,1,Ne+1)
 	space = L2Space(xe, leg)
@@ -171,15 +176,16 @@ def S2SATransport(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	sn = S2SA(sweep)
-	psi = TVector(space, N)
+	psi = TVector(space, quad)
 	phi = sn.SourceIteration(psi, tol=1e-10)
 
 	return phi.L2Error(phi_ex, 2*p+1)
 
 def P1SATransport(Ne, p):
 	N = 4
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p) 
 	xe = np.linspace(0,1,Ne+1)
 	space = L2Space(xe, leg)
@@ -200,15 +206,16 @@ def P1SATransport(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	sn = P1SA(sweep)
-	psi = TVector(space, N)
+	psi = TVector(space, quad)
 	phi = sn.SourceIteration(psi, tol=1e-10)
 
 	return phi.L2Error(phi_ex, 2*p+1)
 
 def FullQD(Ne, p):
 	N = 6
+	quad = LegendreQuad(N)
 	leg = LegendreBasis(p)
 	xe = np.linspace(0,1, Ne+1)
 	space = L2Space(xe, leg) 
@@ -229,9 +236,9 @@ def FullQD(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
-	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_ex, False)
+	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	qd = QD(space, space, sweep)
-	psi = TVector(space, N)
+	psi = TVector(space, quad)
 	phi = qd.SourceIteration(psi, tol=1e-12)
 
 	return phi.L2Error(phi_ex, 2*p+1)
