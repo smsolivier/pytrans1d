@@ -45,7 +45,7 @@ class QDFactors:
 		phi = 0 
 		for a in range(self.N):
 			mu = self.mu[a] 
-			if (mu*face.nor>0):
+			if (mu*face.nor>0 or face.boundary):
 				el = face.el1.ElNo
 				xi = face.IPTrans(0)
 			else:
@@ -58,12 +58,17 @@ class QDFactors:
 		return P/phi 
 
 	def EvalG(self, face_t):
-		xi = face_t.IPTrans(0)
 		t = 0 
 		b = 0 
 		for a in range(self.N):
 			mu = self.mu[a] 
-			psi_at_ip = self.psi.GetAngle(a).Interpolate(face_t.el1.ElNo, xi) 
+			if (face_t.nor*mu>0 or face_t.boundary):
+				el = face_t.el1
+				xi = face_t.IPTrans(0)
+			else:
+				el = face_t.el2 
+				xi = face_t.IPTrans(1)
+			psi_at_ip = self.psi.GetAngle(a).Interpolate(el.ElNo, xi) 
 			t += abs(mu)*self.w[a] * psi_at_ip 
 			b += psi_at_ip * self.w[a] 
 
@@ -81,7 +86,7 @@ class QDFactors:
 		return t/phi 
 
 	def EvalCp(self, face):
-		if (face.nor>0):
+		if (face.nor>0 or face.boundary):
 			el = face.el1 
 			xi = face.IPTrans(0)
 		else:
@@ -101,7 +106,7 @@ class QDFactors:
 		return abs(t/b) 
 
 	def EvalCm(self, face):
-		if (face.nor<0):
+		if (face.nor<0 or face.boundary):
 			el = face.el1 
 			xi = face.IPTrans(0)
 		else:
