@@ -14,12 +14,12 @@ def test_iso():
 	assert(qdf.EvalFactor(space.el[0],0)==pytest.approx(1/3))
 	assert(qdf.EvalFactorBdr(space.iface[0])==pytest.approx(1/3))
 	assert(qdf.EvalFactorDeriv(space.el[0], 0)==pytest.approx(0))
-	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalG(space.iface[0])==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalCp(space.iface[0])==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalCm(space.iface[0])==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalJinBdr(space.bface[0])==pytest.approx(-.5, abs=1e-2))
-	assert(qdf.EvalJinBdr(space.bface[-1])==pytest.approx(-.5, abs=1e-2))
+	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(.5))
+	assert(qdf.EvalG(space.iface[0])==pytest.approx(.5))
+	assert(qdf.EvalCp(space.iface[0])==pytest.approx(.5))
+	assert(qdf.EvalCm(space.iface[0])==pytest.approx(.5))
+	assert(qdf.EvalJinBdr(space.bface[0])==pytest.approx(-.5))
+	assert(qdf.EvalJinBdr(space.bface[-1])==pytest.approx(-.5))
 	assert(qdf.EvalPhiInBdr(space.bface[0])==pytest.approx(1))
 	assert(qdf.EvalPhiInBdr(space.bface[-1])==pytest.approx(1))
 
@@ -29,10 +29,10 @@ def test_lin():
 	assert(qdf.EvalFactor(space.el[0],0)==pytest.approx(1/3))
 	assert(qdf.EvalFactorBdr(space.iface[0])==pytest.approx(1/3))
 	assert(qdf.EvalFactorDeriv(space.el[0], 0)==pytest.approx(0))
-	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalG(space.iface[0])==pytest.approx(.5, abs=1e-2))
-	assert(qdf.EvalCp(space.iface[0])==pytest.approx(5/9, abs=1e-2))
-	assert(qdf.EvalCm(space.iface[0])==pytest.approx(1/3, abs=1e-2))
+	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(.5))
+	assert(qdf.EvalG(space.iface[0])==pytest.approx(.5))
+	assert(qdf.EvalCp(space.iface[0])==pytest.approx(5/9))
+	assert(qdf.EvalCm(space.iface[0])==pytest.approx(1/3))
 
 def test_quad():
 	psi.Project(lambda x, mu: 1 + mu**2) 
@@ -40,10 +40,10 @@ def test_quad():
 	assert(qdf.EvalFactor(space.el[0],0)==pytest.approx(2/5))
 	assert(qdf.EvalFactorBdr(space.iface[0])==pytest.approx(2/5))
 	assert(qdf.EvalFactorDeriv(space.el[0], 0)==pytest.approx(0))
-	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(9/16, abs=1e-2))
-	assert(qdf.EvalG(space.iface[0])==pytest.approx(9/16, abs=1e-2))
-	assert(qdf.EvalCp(space.iface[0])==pytest.approx(9/16, abs=1e-2))
-	assert(qdf.EvalCm(space.iface[0])==pytest.approx(9/16, abs=1e-2))
+	assert(qdf.EvalGInt(space.el[0], 0)==pytest.approx(9/16))
+	assert(qdf.EvalG(space.iface[0])==pytest.approx(9/16))
+	assert(qdf.EvalCp(space.iface[0])==pytest.approx(9/16))
+	assert(qdf.EvalCm(space.iface[0])==pytest.approx(9/16))
 
 def SetupMMS(alpha, beta, gamma, delta, eta, sigt, sigs):
 	L = 1 + 2*eta 
@@ -86,16 +86,16 @@ def test_quad_spat():
 	assert(qdf.EvalFactor(el, xi)==pytest.approx(E(x)))
 	assert(qdf.EvalFactorBdr(face)==pytest.approx(E(xf)))
 	assert(qdf.EvalFactorDeriv(el, xi)==pytest.approx(dE(x)))
-	assert(qdf.EvalGInt(el, xi)==pytest.approx(G(x), abs=1e-2))
-	assert(qdf.EvalJinBdr(space.bface[0])==pytest.approx(Jl(0), abs=1e-2))
-	assert(qdf.EvalJinBdr(space.bface[-1])==pytest.approx(Jr(1), abs=1e-2))
+	assert(qdf.EvalGInt(el, xi)==pytest.approx(G(x)))
+	assert(qdf.EvalJinBdr(space.bface[0])==pytest.approx(Jl(0)))
+	assert(qdf.EvalJinBdr(space.bface[-1])==pytest.approx(Jr(1)))
 	assert(qdf.EvalPhiInBdr(space.bface[0])==pytest.approx(phil(0)))
 	assert(qdf.EvalPhiInBdr(space.bface[-1])==pytest.approx(phir(1)))
-	assert(qdf.EvalCp(face)==pytest.approx(abs(Jl(xf)/phil(xf)), abs=1e-2))
-	assert(qdf.EvalCm(face)==pytest.approx(abs(Jr(xf)/phir(xf)), abs=1e-2))
+	assert(qdf.EvalCp(face)==pytest.approx(abs(Jl(xf)/phil(xf))))
+	assert(qdf.EvalCm(face)==pytest.approx(abs(Jr(xf)/phir(xf))))
 
-N = 32
-quad = LegendreQuad(N)
+N = 8
+quad = DoubleLegendreQuad(N)
 Ne = 25
 p = 5
 leg = LegendreBasis(p)
