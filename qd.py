@@ -18,6 +18,15 @@ def JumpJumpQDFIntegrator(face, qdf):
 	j2 = np.concatenate((G1*s1, -G2*s2))
 	return .5*np.outer(j1, j2) 
 
+def UpwJumpJumpQDFIntegrator(face, qdf):
+	xi1 = face.IPTrans(0)
+	xi2 = face.IPTrans(1)
+	s1 = face.el1.CalcShape(xi1)
+	s2 = face.el2.CalcShape(xi2)
+	G = qdf.EvalG(face)
+	j = np.concatenate((s1, -s2))
+	return .5*np.outer(j,j)*G 
+
 def FM1Integrator(face, qdf):
 	xi1 = face.IPTrans(0)
 	xi2 = face.IPTrans(1)
@@ -30,6 +39,18 @@ def FM1Integrator(face, qdf):
 	j1 = np.concatenate((E1*s1, -E2*s2))
 	j2 = np.concatenate((s1/C1, -s2/C2))
 	return .5*np.outer(j1, j2)
+
+def UpwFM1Integrator(face, qdf):
+	xi1 = face.IPTrans(0)
+	xi2 = face.IPTrans(1)
+	s1 = face.el1.CalcShape(xi1)
+	s2 = face.el2.CalcShape(xi2)
+	C1 = qdf.EvalCp(face)
+	C2 = qdf.EvalCm(face)
+	E = qdf.EvalFactorBdr(face)
+	j1 = np.concatenate((s1, -s2))
+	j2 = np.concatenate((s1/C1, -s2/C2))
+	return .5*E*np.outer(j1, j2)	
 
 def FM2Integrator(face1, face2, qdf):
 	xi1 = face1.IPTrans(0)
@@ -48,6 +69,22 @@ def FM2Integrator(face1, face2, qdf):
 	G2 = qdf.EvalGInt(face2.el2, xi2)
 	a = .5*np.concatenate((G1/C1*s1, G2/C2*s2))
 	return np.outer(j, a)
+
+def UpwFM2Integrator(face1, face2, qdf):
+	xi1 = face1.IPTrans(0)
+	xi2 = face1.IPTrans(1)
+	s1 = face1.el1.CalcShape(xi1)
+	s2 = face1.el2.CalcShape(xi2)
+	E = qdf.EvalFactorBdr(face1)
+	j = np.concatenate((s1, -s2)) * face1.nor
+
+	s1 = face2.el1.CalcShape(xi1)
+	s2 = face2.el2.CalcShape(xi2)
+	C1 = qdf.EvalCp(face2)
+	C2 = qdf.EvalCm(face2)
+	G = qdf.EvalG(face2)
+	a = .5*np.concatenate((1/C1*s1, 1/C2*s2))
+	return np.outer(j, a) * E * G 
 
 def PhiInflowIntegrator(face, qdf):
 	xi = face.IPTrans(0)
@@ -125,12 +162,10 @@ class QD(AbstractQD):
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi)
-		G = MixAssemble(self.J_space, self.phi_space, 
-			MixWeakEddDivIntegrator, self.qdf, self.qorder)
-		Ma = self.Ma + FaceAssembleAll(self.phi_space, 
-			JumpJumpQDFIntegrator, self.qdf)
-		Mt = self.Mt + FaceAssembleAll(self.J_space, FM1Integrator, self.qdf)
-		G += MixFaceAssembleAll(self.J_space, self.phi_space, FM2Integrator, self.qdf)
+		G = MixAssemble(self.J_space, self.phi_space, MixWeakEddDivIntegrator, self.qdf, self.qorder)
+		Ma = self.Ma + FaceAssembleAll(self.phi_space, UpwJumpJumpQDFIntegrator, self.qdf)
+		Mt = self.Mt + FaceAssembleAll(self.J_space, UpwFM1Integrator, self.qdf)
+		G += MixFaceAssembleAll(self.J_space, self.phi_space, UpwFM2Integrator, self.qdf)
 
 		Q0 = self.Q0 - BdrFaceAssembleRHS(self.phi_space, JInflowIntegrator, self.qdf)
 		Q1 = self.Q1 - BdrFaceAssembleRHS(self.J_space, PhiInflowIntegrator, self.qdf)
@@ -155,52 +190,38 @@ class QD(AbstractQD):
 if __name__=='__main__':
 	import sys 
 	Ne = 10 
-	p = 3
+	p = 1
 	if (len(sys.argv)>1):
 		Ne = int(sys.argv[1])
 	if (len(sys.argv)>2):
 		p = int(sys.argv[2])
-	N = 4
+	N = 16
 	xe = np.linspace(0,1, Ne+1)
 	leg = LegendreBasis(p)
 	space = L2Space(xe, leg)
 
-	eps = .1
+	eps = 1e-2
 	sigma_t = lambda x: 1/eps 
 	sigma_s = lambda x: 1/eps - eps 
 
-	alpha = 1
-	beta = 0 
-	gamma = 0 
-	delta = 2
-	eta = 0 
-	L = 1 + 2*eta 
-	f = lambda x: alpha*np.sin(np.pi*x) + delta 
-	df = lambda x: alpha*np.pi*np.cos(np.pi*x) 
-	g = lambda x: beta*np.sin(2*np.pi*x) 
-	dg = lambda x: beta*2*np.pi*np.cos(2*np.pi*x) 
-	h = lambda x: gamma*np.sin(3*np.pi*(x+eta)/L)
-	dh = lambda x: gamma*3*np.pi/L*np.cos(3*np.pi*(x+eta)/L)
-	psi_ex = lambda x, mu: .5*(f(x) + mu*g(x) + mu**2*h(x))
-	dpsi = lambda x, mu: .5*(df(x) + mu*dg(x) + mu**2*dh(x))
-	phi_ex = lambda x: f(x) + 1/3*h(x)
-
-	Q = lambda x, mu: mu*dpsi(x,mu) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
-	psi_in = lambda x, mu: psi_ex(x,mu)
+	Q = lambda x, mu: eps
+	psi_in = lambda x, mu: 0
 	sweep = DirectSweeper(space, N, sigma_t, sigma_s, Q, psi_in)
-
-	qd = QD(space, space, sweep)
 	psi = TVector(space, N)
-	phi = qd.SourceIteration(psi, tol=1e-10) 
+	qd = QD(space, space, sweep)
+	phi = qd.SourceIteration(psi, tol=1e-12) 
 	phi_sn = qd.ComputeScalarFlux(psi) 
 
+	# p1sa = P1SA(sweep)
+	# psi.Project(lambda x, mu: 0)
+	# phi_p1 = p1sa.SourceIteration(psi, tol=1e-12)
+
 	print('diff = {:.3e}'.format(phi.L2Diff(phi_sn, 2*p+1)))
-	print('err = {:.3e}'.format(phi.L2Error(phi_ex, 2*p+1)))
 
 	# plt.figure()
 	# plt.plot(space.x, qd.qdf.P.data/qd.qdf.phi.data, '-o')
 
 	plt.figure()
 	plt.plot(phi.space.x, phi.data, '-o')
-	plt.plot(phi_sn.space.x, phi_sn.data, '-o')
+	# plt.plot(phi_p1.space.x, phi_p1.data, '-o')
 	plt.show()
