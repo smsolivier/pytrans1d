@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import newton_cotes 
 import sys 
-from basis import * 
+from .basis import * 
 
 class Quadrature: 
 	def __init__(self):
@@ -48,10 +48,3 @@ class Quadrature:
 			sys.exit()
 
 quadrature = Quadrature()
-
-if __name__=='__main__':
-	p = 1
-	basis = LagrangeBasis(p)
-	# basis = LobattoBasis(p)
-	ip, w = quadrature.GetLumped(basis) 
-	print(ip, w) 

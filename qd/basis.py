@@ -63,26 +63,3 @@ class LobattoBasis(BasisCollection):
 class LagrangeBasis(BasisCollection):
 	def __init__(self, p):
 		BasisCollection.__init__(self, p, GenLagrange)
-
-if __name__=='__main__':
-	from pypv import * 
-	p = 2
-	basis = LagrangeBasis(p)
-	# basis = LobattoBasis(p)
-	# basis = LegendreBasis(p)
-
-	x = np.linspace(-1,1,100)
-	plt.axhline(1, color='k', alpha=.3)
-	plt.axhline(0, color='k', alpha=.3)
-	# for i in range(basis.N):
-	# 	plt.axvline(basis.ip[i], color='k', alpha=.3)
-	# 	plt.plot(x, np.polyval(basis.B[:,i], x))
-
-	b = np.zeros((basis.N, len(x)))
-	for i in range(len(x)):
-		b[:,i] = PolyVal(basis.B, x[i]) 
-
-	for i in range(basis.N):
-		plt.plot(x, b[i,:])
-
-	plt.show()

@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from quadrature import quadrature 
-from fespace import *
+from .quadrature import quadrature 
+from .fespace import *
 import scipy.sparse as sp 
 import scipy.sparse.linalg as spla 
 
@@ -348,27 +348,3 @@ def BdrFaceAssembleRHS(space, integrator, c):
 
 def FaceAssembleAll(space, integrator, c):
 	return FaceAssemble(space, integrator, c) + BdrFaceAssemble(space, integrator, c)
-
-if __name__=='__main__':
-	Ne = 6
-	p = 2
-	xe = np.linspace(0,1,Ne+1)
-	basis = LegendreBasis(p)
-	space = L2Space(xe, basis)
-	mu = 1
-	F = FaceAssembleAll(space, UpwindIntegrator, mu)
-	G = Assemble(space, WeakConvectionIntegrator, mu, 2*p-1)
-	Mt = Assemble(space, MassIntegrator, lambda x: 1, 2*p-1) 
-
-	A = G + F + Mt
-
-	u = GridFunction(space) 
-	I = BdrFaceAssembleRHS(space, InflowIntegrator, [mu, lambda x: 1])
-	u.data = spla.spsolve(A, I)
-	err = u.L2Error(lambda x: np.exp(-x), 2*p+1)
-	print('err = {:.3e}'.format(err))
-
-	plt.plot(space.x, u.data, '-o')
-	xex = np.linspace(0,1,100)
-	plt.plot(xex, np.exp(-xex), '--')
-	plt.show()

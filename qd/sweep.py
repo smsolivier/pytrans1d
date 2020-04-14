@@ -3,9 +3,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from quadrature import quadrature
-from integrators import * 
-from angle_quad import * 
+from .quadrature import quadrature
+from .integrators import * 
+from .angle_quad import * 
 
 class AbstractSweeper:
 	def __init__(self, space, quad, sigma_t, sigma_s, Q, psi_in, LOUD=True):

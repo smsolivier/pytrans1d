@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from basis import * 
-from pypv import PolyVal
+from .basis import * 
+from .pypv import PolyVal
 
 class Element:
 	def __init__(self, basis, line, elno=-1):
@@ -53,12 +53,3 @@ class Element:
 			print('inverse map not converged')
 
 		return xi 
-
-if __name__=='__main__':
-	p = 1 
-	basis = LegendreBasis(p) 
-	el = Element(basis, [0,1]) 
-	print(el.nodes) 
-	print(el.Transform(0))
-
-	print(el.InverseMap(.5))

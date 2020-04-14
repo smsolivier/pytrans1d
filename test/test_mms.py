@@ -3,11 +3,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from integrators import * 
-from sn import * 
-from s2sa import * 
-from p1sa import * 
-from vef import * 
 from qd import * 
 import pytest 
 

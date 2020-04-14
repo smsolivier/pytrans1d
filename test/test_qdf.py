@@ -3,8 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from qdf import * 
-from sn import * 
+from qd import * 
 import pytest
 
 def test_iso():

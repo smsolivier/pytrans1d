@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys 
 
-from element import * 
+from .element import * 
 
 class FaceTrans:
 	def __init__(self, els, edge):
@@ -141,7 +141,7 @@ class GridFunction:
 			self.SetDof(e, vals) 
 
 	def L2Error(self, ex, qorder):
-		from quadrature import quadrature
+		from .quadrature import quadrature
 		l2 = 0 
 		ip, w = quadrature.Get(qorder)
 		for e in range(self.space.Ne):
@@ -179,7 +179,7 @@ class GridFunction:
 		return np.sqrt(err)
 
 	def L2Diff(self, gf, qorder):
-		from quadrature import quadrature
+		from .quadrature import quadrature
 		l2 = 0 
 		ip, w = quadrature.Get(qorder)
 		for e in range(self.space.Ne):
@@ -215,16 +215,3 @@ class GridFunction:
 
 		return np.sqrt(l2)
 		
-if __name__=='__main__':
-	Ne = 2
-	p = 5	
-	xe = np.linspace(-1, 1, Ne+1)
-	# basis = LegendreBasis(p) 
-	basis = LobattoBasis(p)
-	# space = L2Space(xe, basis) 
-	space = H1Space(xe, basis) 
-	phi = GridFunction(space)
-	phi.L2Error(lambda x: 1, 2)
-	phi.Project(lambda x: x**2) 
-	plt.plot(space.x, phi.data, '-o')
-	plt.show()
