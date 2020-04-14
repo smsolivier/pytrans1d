@@ -118,6 +118,7 @@ class VEF(AbstractVEF):
 			self.low_space = phi_space 
 		self.pp = pp 
 		self.scl = False
+		self.exl = False
 
 	def Mult(self, psi):
 		self.qdf.Compute(psi) 
@@ -136,6 +137,8 @@ class VEF(AbstractVEF):
 		else:
 			if (self.scl):
 				Ainv = self.AssembleMtBInvSCLump()
+			elif (self.exl):
+				Ainv = spla.inv(Mt) 
 			else:
 				Ainv = sp.diags(1/(self.Mtl + B).diagonal())
 			x = self.lin_solver.Solve(Mt, Ainv, G, self.D, self.Ma, rhs)
