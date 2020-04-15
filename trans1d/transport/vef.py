@@ -21,7 +21,8 @@ class AbstractVEF(Sn):
 		self.qorder = qorder 
 		self.sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x)
 		self.Mt = Assemble(self.J_space, MassIntegrator, sweeper.sigma_t, qorder)
-		self.Mtl = Assemble(self.J_space, MassIntegratorLumped, sweeper.sigma_t, qorder)
+		# self.Mtl = Assemble(self.J_space, MassIntegratorLumped, sweeper.sigma_t, qorder)
+		self.Mtl = Assemble(self.J_space, MassIntegratorRowSum, sweeper.sigma_t, qorder) 
 		self.Ma = Assemble(self.phi_space, MassIntegrator, self.sigma_a, qorder)
 		self.D = MixAssemble(self.phi_space, self.J_space, MixDivIntegrator, 1, qorder) 
 
