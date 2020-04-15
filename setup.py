@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
 import setuptools
-import numpy as np 
 
-ext = setuptools.Extension('horner', sources=['fem/horner.c'], include_dirs=[np.get_include()])
+class get_numpy_include(object):
+	def __str__(self):
+		import numpy 
+		return numpy.get_include()
+
+ext = setuptools.Extension('horner', sources=['fem/horner.c'], include_dirs=[get_numpy_include()])
 
 setuptools.setup(
 	name='hotransport', 
