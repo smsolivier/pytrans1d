@@ -7,7 +7,11 @@ class get_numpy_include(object):
 		import numpy 
 		return numpy.get_include()
 
-ext = setuptools.Extension('trans1d.fem.horner', sources=['trans1d/fem/horner.c'], include_dirs=[get_numpy_include()])
+ext = setuptools.Extension('trans1d.fem.horner', 
+	sources=['trans1d/fem/horner.c'], 
+	include_dirs=[get_numpy_include()], 
+	extra_compile_args=['-fopenmp'], 
+	extra_link_args=['-lgomp'])
 
 setuptools.setup(
 	name='trans1d', 
