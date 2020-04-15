@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .fespace import * 
-from .quadrature import quadrature 
+from fem.fespace import * 
+from fem.quadrature import quadrature 
 
 class QDFactors:
 	def __init__(self, tspace, quad, psi_in=None):

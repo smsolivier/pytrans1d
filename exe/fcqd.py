@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from qd import * 
+from transport import * 
 
 import sys 
 Ne = 10 

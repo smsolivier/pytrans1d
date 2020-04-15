@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .basis import * 
-from .pypv import PolyVal
+from .horner import PolyVal
 
 class Element:
 	def __init__(self, basis, line, elno=-1):

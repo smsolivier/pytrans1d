@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from qd import * 
+from fem import * 
 
 p = 2
 basis = LegendreBasis(p)

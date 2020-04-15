@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .quadrature import quadrature
-from .integrators import * 
+from fem.quadrature import quadrature
+from fem.integrators import * 
 from .angle_quad import * 
 
 class AbstractSweeper:

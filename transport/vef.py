@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from .qdf import * 
 from .sn import * 
-from .linsolver import * 
+from fem.linsolver import * 
 import pyamg 
 
 class AbstractVEF(Sn):

@@ -3,11 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# from integrators import * 
-# from sn import * 
-# from qdf import * 
-# from vef import * 
-from qd import * 
+from transport import * 
 
 def SolveH1Diffusion(Ne, p):
 	xe = np.linspace(0, 1, Ne+1)
