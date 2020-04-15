@@ -7,6 +7,7 @@ from .quadrature import quadrature
 from .fespace import *
 import scipy.sparse as sp 
 import scipy.sparse.linalg as spla 
+from .horner import Outer
 
 class COOBuilder:
 	def __init__(self, m, n=None):
@@ -37,7 +38,7 @@ def MassIntegrator(el, c, qorder):
 		s = el.CalcShape(ip[n]) 
 		X = el.Transform(ip[n]) 
 		coef = c(X) 
-		elmat += np.outer(s, s) * coef * w[n] * el.Jacobian(ip[n]) 
+		elmat += Outer(s, s) * coef * w[n] * el.Jacobian(ip[n]) 
 
 	return elmat 
 
@@ -49,7 +50,7 @@ def MassIntegratorLumped(el, c, qorder):
 		s = el.CalcShape(ip[n]) 
 		X = el.Transform(ip[n])
 		coef = c(X)
-		elmat += np.outer(s,s) * coef * w[n] * el.Jacobian(ip[n])
+		elmat += Outer(s,s) * coef * w[n] * el.Jacobian(ip[n])
 
 	return elmat 
 
@@ -74,7 +75,7 @@ def MixMassIntegrator(el1, el2, c, qorder):
 		s2 = el2.CalcShape(ip[n]) 
 		X = el1.Transform(ip[n]) 
 		coef = c(X)
-		elmat += np.outer(s1, s2) * coef * w[n] * el1.Jacobian(ip[n]) 
+		elmat += Outer(s1, s2) * coef * w[n] * el1.Jacobian(ip[n]) 
 
 	return elmat 
 
@@ -86,7 +87,7 @@ def WeakPoissonIntegrator(el, c, qorder):
 		g = el.CalcPhysGradShape(ip[n]) 
 		X = el.Transform(ip[n]) 
 		coef = c(X) 
-		elmat += np.outer(g, g) * coef * w[n] * el.Jacobian(ip[n]) 
+		elmat += Outer(g, g) * coef * w[n] * el.Jacobian(ip[n]) 
 
 	return elmat 
 
@@ -104,8 +105,8 @@ def VEFPoissonIntegrator(el, c, qorder):
 		X = el.Transform(ip[n]) 
 		sig_eval = sigma_t(X) 
 
-		m1 = np.outer(g, s) / sig_eval * dE * w[n] * el.Jacobian(ip[n]) 
-		m2 = np.outer(g, g) / sig_eval * E * w[n] * el.Jacobian(ip[n]) 
+		m1 = Outer(g, s) / sig_eval * dE * w[n] * el.Jacobian(ip[n]) 
+		m2 = Outer(g, g) / sig_eval * E * w[n] * el.Jacobian(ip[n]) 
 
 		elmat += m1 + m2 
 
@@ -118,7 +119,7 @@ def WeakConvectionIntegrator(el, c, qorder):
 	for n in range(len(w)):
 		g = el.CalcPhysGradShape(ip[n]) 
 		s = el.CalcShape(ip[n]) 
-		elmat -= np.outer(g, s) * c * w[n] * el.Jacobian(ip[n]) 
+		elmat -= Outer(g, s) * c * w[n] * el.Jacobian(ip[n]) 
 
 	return elmat 
 
@@ -131,7 +132,7 @@ def UpwindIntegrator(face_t, c):
 	jump = np.concatenate((s1, -s2))
 	avg = .5*np.concatenate((s1, s2))
 
-	elmat = c*face_t.nor*np.outer(jump, avg) + .5*abs(c)*np.outer(jump, jump) 
+	elmat = c*face_t.nor*Outer(jump, avg) + .5*abs(c)*Outer(jump, jump) 
 	return elmat 
 
 def InflowIntegrator(face_t, c):
@@ -153,7 +154,7 @@ def MixDivIntegrator(el1, el2, c, qorder):
 	for n in range(len(w)):
 		s = el1.CalcShape(ip[n]) 
 		g = el2.CalcPhysGradShape(ip[n]) 
-		elmat += np.outer(s, g) * w[n] * el1.Jacobian(ip[n]) * c
+		elmat += Outer(s, g) * w[n] * el1.Jacobian(ip[n]) * c
 
 	return elmat 
 
@@ -164,7 +165,7 @@ def WeakMixDivIntegrator(el1, el2, c, qorder):
 	for n in range(len(w)):
 		g = el1.CalcPhysGradShape(ip[n]) 
 		s = el2.CalcShape(ip[n]) 
-		elmat -= np.outer(g, s) * w[n] * el2.Jacobian(ip[n]) * c
+		elmat -= Outer(g, s) * w[n] * el2.Jacobian(ip[n]) * c
 
 	return elmat 
 
@@ -179,7 +180,7 @@ def MixJumpAvgIntegrator(face1, face2, c):
 	s22 = face2.el2.CalcShape(xi2)
 	avg = .5*np.concatenate((s21, s22))
 
-	return np.outer(jump, avg) * c* face1.nor 
+	return Outer(jump, avg) * c* face1.nor 
 
 def JumpJumpIntegrator(face, c):
 	xi1 = face.IPTrans(0)
@@ -187,7 +188,7 @@ def JumpJumpIntegrator(face, c):
 	s1 = face.el1.CalcShape(xi1)
 	s2 = face.el2.CalcShape(xi2)
 	jump = np.concatenate((s1, -s2))
-	return np.outer(jump, jump) * c 
+	return Outer(jump, jump) * c 
 
 def MixWeakEddDivIntegrator(el1, el2, qdf, qorder):
 	ip, w = quadrature.Get(qorder)
@@ -197,7 +198,7 @@ def MixWeakEddDivIntegrator(el1, el2, qdf, qorder):
 		g = el1.CalcPhysGradShape(ip[n]) 
 		s = el2.CalcShape(ip[n]) 
 		E = qdf.EvalFactor(el1, ip[n]) 
-		elmat -= np.outer(g, s) * E * w[n] * el1.Jacobian(ip[n]) 
+		elmat -= Outer(g, s) * E * w[n] * el1.Jacobian(ip[n]) 
 
 	return elmat 
 
@@ -206,7 +207,7 @@ def MLBdrIntegrator(face_t, qdf):
 	s = face_t.el1.CalcShape(xi1)
 	E = qdf.EvalFactor(face_t.el1, xi1) 
 	G = qdf.EvalG(face_t)
-	elmat = np.outer(s, s) * E / G 
+	elmat = Outer(s, s) * E / G 
 	return elmat 
 
 def VEFInflowIntegrator(face_t, qdf):
@@ -226,7 +227,7 @@ def ConstraintIntegrator(face1, face2, c):
 	s21 = face2.el1.CalcShape(xi1)
 	s22 = face2.el2.CalcShape(xi2) 
 	jump = np.concatenate((s21, -s22))
-	return np.outer(avg, jump) * c * face1.nor
+	return Outer(avg, jump) * c * face1.nor
 
 def UpwEddConstraintIntegrator(face1, face2, qdf):
 	xi1 = face1.IPTrans(0)
@@ -238,7 +239,7 @@ def UpwEddConstraintIntegrator(face1, face2, qdf):
 	s22 = face2.el2.CalcShape(xi2) 
 	avg = .5*np.concatenate((s21, s22))
 	E = qdf.EvalFactorBdr(face1)
-	return np.outer(jump, avg) * E * face1.nor
+	return Outer(jump, avg) * E * face1.nor
 
 def EddConstraintIntegrator(face1, face2, qdf):
 	xi1 = face1.IPTrans(0)
@@ -251,7 +252,7 @@ def EddConstraintIntegrator(face1, face2, qdf):
 	s21 = face2.el1.CalcShape(xi1)
 	s22 = face2.el2.CalcShape(xi2) 
 	avg = .5*np.concatenate((s21, s22))
-	return np.outer(jump, avg) * face1.nor
+	return Outer(jump, avg) * face1.nor
 
 def DomainIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)

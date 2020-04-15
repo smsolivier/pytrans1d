@@ -1,6 +1,7 @@
 #include "Python.h"
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h> 
+#include <omp.h>
 
 static PyObject* _polyval(PyObject* self, PyObject* args) {
 	PyArrayObject *B; 
@@ -27,8 +28,55 @@ static PyObject* _polyval(PyObject* self, PyObject* args) {
 	return PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, shape); 
 }
 
+static PyObject* _polyval_mult(PyObject* self, PyObject* args) {
+	PyArrayObject *B, *x; 
+	if (!PyArg_ParseTuple(args, "OO", &B, &x)) return NULL; 
+
+	int nb = PyArray_DIM(B, 1); // number of basis functions 
+	int nc = PyArray_DIM(B, 0); // number of coefficients 
+	int nx = PyArray_DIM(x, 0); // number of spatial points 
+
+	double* Bptr = PyArray_DATA(B); 
+	double* xptr = PyArray_DATA(x); 
+	npy_intp dims[2] = {nx, nb}; 
+	double* shape = malloc(sizeof(double)*nb*nx); 
+	for (int i=0; i<nx; i++) {
+		double X = xptr[i]; 
+		for (int j=0; j<nb; j++) {
+			int ind = i*nb + j; 
+			shape[ind] = Bptr[j]; 
+			for (int k=1; k<nc; k++) {
+				shape[ind] = shape[ind]*X + Bptr[k*nb + j]; 
+			}
+		}
+	}
+	return PyArray_SimpleNewFromData(2, &dims, NPY_DOUBLE, shape); 
+}
+
+static PyObject* _outer(PyObject* self, PyObject* args) {
+	PyArrayObject *v1, *v2; 
+	if (!PyArg_ParseTuple(args, "OO", &v1, &v2)) return NULL; 
+
+	int m = PyArray_DIM(v1, 0); 
+	int n = PyArray_DIM(v2, 0); 
+
+	double *pv1 = PyArray_DATA(v1); 
+	double *pv2 = PyArray_DATA(v2); 
+	double* mat = malloc(sizeof(double)*m*n); 
+	npy_intp dims[2] = {m, n}; 
+	for (int i=0; i<m; i++) {
+		for (int j=0; j<n; j++) {
+			mat[j+i*n] = pv1[i] * pv2[j]; 
+		}
+	}
+	return PyArray_SimpleNewFromData(2, &dims, NPY_DOUBLE, mat); 
+}
+
 static PyMethodDef mainMethods[] = {
-	{"PolyVal", _polyval, METH_VARARGS, "horner's method"}, {NULL, NULL, 0, NULL}
+	{"PolyVal", _polyval, METH_VARARGS, "horner's method"}, 
+	{"PolyVal2", _polyval_mult, METH_VARARGS, "horner's method for multiple evaluation locations"}, 
+	{"Outer", _outer, METH_VARARGS, "outer product"}, 
+	{NULL, NULL, 0, NULL}
 }; 
 
 static PyModuleDef pv_mod = {PyModuleDef_HEAD_INIT, "horner", "module for Horner's method", -1, mainMethods}; 
