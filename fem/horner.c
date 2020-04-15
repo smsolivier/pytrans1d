@@ -11,15 +11,15 @@ static PyObject* _polyval(PyObject* self, PyObject* args) {
 		return NULL; 
 	}
 
-	int N = PyArray_DIM(B, 0); 
-	int p = PyArray_DIM(B, 1) - 1; 
+	int N = PyArray_DIM(B, 1); 
+	int p = PyArray_DIM(B, 0); 
 
 	double *ptr = PyArray_DATA(B); 
 	npy_intp dims = {N}; 
 	double* shape = malloc(sizeof(double)*N); 
 	for (int i=0; i<N; i++) {
 		shape[i] = ptr[i]; 
-		for (int j=1; j<N; j++) {
+		for (int j=1; j<p; j++) {
 			shape[i] = shape[i]*x + ptr[j*N+ i]; 
 		}
 	}
