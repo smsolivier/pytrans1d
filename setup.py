@@ -7,7 +7,7 @@ class get_numpy_include(object):
 		import numpy 
 		return numpy.get_include()
 
-ext = setuptools.Extension('horner', sources=['fem/horner.c'], include_dirs=[get_numpy_include()])
+ext = setuptools.Extension('fem.horner', sources=['fem/horner.c'], include_dirs=[get_numpy_include()])
 
 setuptools.setup(
 	name='hotransport', 
