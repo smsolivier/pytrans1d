@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fem import basis, horner
+from trans1d.fem import basis, horner
 
 b = basis.LagrangeBasis(2)
 x = np.linspace(-1,1)

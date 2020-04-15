@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fem import * 
+from trans1d.fem import * 
 
 Ne = 10 
 p = 1 

@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from transport import * 
+from trans1d import * 
 
 Ne = 100 
 p = 1

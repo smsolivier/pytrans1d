@@ -7,13 +7,13 @@ class get_numpy_include(object):
 		import numpy 
 		return numpy.get_include()
 
-ext = setuptools.Extension('fem.horner', sources=['fem/horner.c'], include_dirs=[get_numpy_include()])
+ext = setuptools.Extension('trans1d.fem.horner', sources=['trans1d/fem/horner.c'], include_dirs=[get_numpy_include()])
 
 setuptools.setup(
-	name='hotransport', 
+	name='trans1d', 
 	author='Samuel Olivier', 
 	description='high order finite transport methods in 1D', 
-	packages=['fem', 'transport'], 
+	packages=['trans1d', 'trans1d.fem', 'trans1d.transport'], 
 	classifiers=[
 		"Programming Language :: Python :: 3",
 		"License :: OSI Approved :: MIT License",

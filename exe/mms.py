@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from transport import * 
+from trans1d import * 
 
 def SolveH1Diffusion(Ne, p):
 	xe = np.linspace(0, 1, Ne+1)
