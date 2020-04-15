@@ -23,7 +23,8 @@ class Quadrature:
 
 		for p in range(2, pmax):
 			rule = quadpy.line_segment.gauss_lobatto(p) 
-			self.lob_ip.append(np.around(rule.points, 14))
+			# self.lob_ip.append(np.around(rule.points, 14))
+			self.lob_ip.append(rule.points) 
 			self.lob_w.append(rule.weights) 
 
 			ip = np.linspace(-1,1, p)
@@ -38,11 +39,11 @@ class Quadrature:
 	def GetLumped(self, el):
 		basis = el.basis
 		if (isinstance(basis, LegendreBasis)):
-			return self.leg_ip[basis.p], self.leg_w[basis.p]
+			return basis.ip, self.leg_w[basis.p]
 		elif (isinstance(basis, LobattoBasis)):
-			return self.lob_ip[basis.p-1], self.lob_w[basis.p-1]
+			return basis.ip, self.lob_w[basis.p-1]
 		elif (isinstance(basis, LagrangeBasis)):
-			return self.nc_ip[basis.p-1], self.nc_w[basis.p-1]
+			return basis.ip, self.nc_w[basis.p-1]
 		else:
 			print('basis not defined')
 			sys.exit()
