@@ -12,6 +12,8 @@ class Element:
 		self.Nn = basis.p+1
 		self.line = line 
 		self.h = line[1] - line[0] 
+		self.h2 = self.h/2
+		self.xc = (self.line[0] + self.line[1])/2
 		self.ElNo = elno 
 		self.J = self.h/2 # jacobian 
 		self.nodes = self.Transform(basis.ip) 
@@ -29,7 +31,7 @@ class Element:
 		return self.J 
 
 	def Transform(self, xi):
-		return (self.line[0] + self.line[1])/2 + self.h/2*xi 
+		return self.xc + self.h2*xi 
 
 	def Interpolate(self, xi, u):
 		shape = self.CalcShape(xi)
