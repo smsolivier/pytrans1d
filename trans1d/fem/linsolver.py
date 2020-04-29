@@ -59,7 +59,7 @@ class BlockLDU(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p2x2 = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, 
+		x, info = spla.gmres(M, rhs, M=p2x2, atol=self.itol, tol=0,
 			maxiter=self.maxiter, callback=self.Callback, callback_type='legacy', restart=None)
 		self.Cleanup(info)
 
@@ -137,7 +137,7 @@ class BlockLDURelax(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p2x2 = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		x, info = spla.gmres(M, rhs, M=p2x2, atol=self.itol, tol=0, maxiter=self.maxiter, callback=self.Callback)
 		self.Cleanup(info)
 
 		return x 
@@ -159,7 +159,7 @@ class BlockTri(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		x, info = spla.gmres(M, rhs, M=p, atol=self.itol, tol=0, maxiter=self.maxiter, callback=self.Callback)
 		self.Cleanup(info)
 
 		return x 
@@ -181,7 +181,7 @@ class BlockDiag(IterativeSolver):
 			return np.concatenate((x1, x2))
 
 		p = spla.LinearOperator(M.shape, Prec)
-		x, info = spla.gmres(M, rhs, M=p, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		x, info = spla.gmres(M, rhs, M=p, atol=self.itol, tol=0, maxiter=self.maxiter, callback=self.Callback)
 		self.Cleanup(info)
 
 		return x 
@@ -195,7 +195,10 @@ class AMGSolver(IterativeSolver):
 		self.it = 0
 		amg = pyamg.ruge_stuben_solver(A)
 		x, info = spla.gmres(A.tocsc(), b, M=amg.aspreconditioner(cycle='V'), callback=self.Callback, 
-			callback_type='legacy', tol=self.itol, maxiter=self.maxiter, restart=None)
+			callback_type='legacy', atol=self.itol, tol=0, maxiter=self.maxiter, restart=None)
+		res = np.linalg.norm(A*x - b)
+		if (res>self.itol):
+			warnings.warn('residual={:.3e} is larger than tol={:.3e}'.format(res, self.itol), stacklevel=2)
 		self.Cleanup(info)
 
 		return x

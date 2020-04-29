@@ -7,11 +7,17 @@ class get_numpy_include(object):
 		import numpy 
 		return numpy.get_include()
 
-ext = setuptools.Extension('trans1d.fem.horner', 
+horner = setuptools.Extension('trans1d.fem.horner', 
 	sources=['trans1d/fem/horner.c'], 
 	include_dirs=[get_numpy_include()], 
 	extra_compile_args=['-fopenmp'], 
 	extra_link_args=['-lgomp'])
+linalg = setuptools.Extension('trans1d.fem.linalg', 
+	sources=['trans1d/fem/linalg.c'], 
+	include_dirs=[get_numpy_include()], 
+	extra_compile_args=['-fopenmp'], 
+	extra_link_args=['-lgomp'])
+
 
 setuptools.setup(
 	name='trans1d', 
@@ -25,5 +31,5 @@ setuptools.setup(
 		],
 	python_requires=">=3.6", 
 	install_requires=['numpy', 'scipy', 'termcolor', 'pyamg', 'matplotlib', 'quadpy', 'pathlib'], 
-	ext_modules=[ext]
+	ext_modules=[horner, linalg]
 	)
