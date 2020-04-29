@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings
+import time 
 
 from .sweep import * 
-import time 
-from termcolor import colored
+from .. import utils 
 
 class TVector:
 	def __init__(self, space, quad):
@@ -69,6 +69,7 @@ class Sn:
 				break 
 
 		if (norm > tol):
-			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+			warnings.warn('source iteration not converged. final tol={:.3e}'.format(norm), 
+				utils.ToleranceWarning, stacklevel=2)
 
 		return phi 

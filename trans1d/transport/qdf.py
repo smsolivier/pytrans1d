@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings
 
 from trans1d.fem.fespace import * 
 from trans1d.fem.quadrature import quadrature 
+from .. import utils 
 
 class QDFactors:
 	def __init__(self, tspace, quad, psi_in=None):
@@ -25,10 +26,16 @@ class QDFactors:
 		self.P.data *= 0 
 		self.phi.data *= 0 
 
+		neg = False
 		for a in range(self.N):
 			mu = self.mu[a] 
 			self.P.data += self.mu[a]**2 * self.w[a] * psi.GetAngle(a).data 
 			self.phi.data += self.w[a] * psi.GetAngle(a).data 
+			if (psi.GetAngle(a).data<0).any():
+				neg = True
+
+		if (neg):
+			warnings.warn('negative psi detected', utils.NegativityWarning, stacklevel=2)
 
 	def EvalFactor(self, el, xi):
 		return self.P.Interpolate(el.ElNo, xi) / self.phi.Interpolate(el.ElNo, xi) 

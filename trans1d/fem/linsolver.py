@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings 
+from .. import utils 
 
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla 
@@ -17,12 +18,20 @@ class IterativeSolver:
 
 		self.it = 0
 		self.space = 3*' '
+		self.norm = 0
 
 	def Callback(self, r):
 		self.it += 1 
+		self.norm = np.linalg.norm(r)
 		if (self.LOUD):
-			norm = np.linalg.norm(r)
-			print(self.space + 'i={:3}, norm={:.3e}'.format(self.it, norm))
+			print(self.space + 'i={:3}, norm={:.3e}'.format(self.it, self.norm))
+
+	def Cleanup(self, info):
+		if (info>0 or self.it==self.maxiter):
+			warnings.warn('linear solver not converged. final tol={:.3e}, info={}'.format(self.norm, info), 
+				utils.ToleranceWarning, stacklevel=2)
+		if (info<0):
+			raise RuntimeError('linear solver error. info={}'.format(info))
 
 class BlockLDU(IterativeSolver):
 	def __init__(self, itol, maxiter, inner=1, LOUD=False):
@@ -52,6 +61,7 @@ class BlockLDU(IterativeSolver):
 		p2x2 = spla.LinearOperator(M.shape, Prec)
 		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, 
 			maxiter=self.maxiter, callback=self.Callback, callback_type='legacy', restart=None)
+		self.Cleanup(info)
 
 		return x 
 
@@ -128,6 +138,7 @@ class BlockLDURelax(IterativeSolver):
 
 		p2x2 = spla.LinearOperator(M.shape, Prec)
 		x, info = spla.gmres(M, rhs, M=p2x2, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		self.Cleanup(info)
 
 		return x 
 
@@ -149,6 +160,7 @@ class BlockTri(IterativeSolver):
 
 		p = spla.LinearOperator(M.shape, Prec)
 		x, info = spla.gmres(M, rhs, M=p, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		self.Cleanup(info)
 
 		return x 
 
@@ -170,6 +182,7 @@ class BlockDiag(IterativeSolver):
 
 		p = spla.LinearOperator(M.shape, Prec)
 		x, info = spla.gmres(M, rhs, M=p, tol=self.itol, maxiter=self.maxiter, callback=self.Callback)
+		self.Cleanup(info)
 
 		return x 
 
@@ -183,10 +196,6 @@ class AMGSolver(IterativeSolver):
 		amg = pyamg.ruge_stuben_solver(A)
 		x, info = spla.gmres(A.tocsc(), b, M=amg.aspreconditioner(cycle='V'), callback=self.Callback, 
 			callback_type='legacy', tol=self.itol, maxiter=self.maxiter, restart=None)
-
-		res = A*x - b 
-		norm = np.linalg.norm(res)
-		if (norm>self.itol):
-			print(colored('residual = {:.3e}'.format(norm), 'red'))
+		self.Cleanup(info)
 
 		return x

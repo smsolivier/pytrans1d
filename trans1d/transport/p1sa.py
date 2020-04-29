@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings
 
 from .sn import * 
+from .. import utils 
 
 class P1SA(Sn):
 	def __init__(self, sweeper):
@@ -52,6 +53,7 @@ class P1SA(Sn):
 				break 
 
 		if (norm > tol):
-			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+			warnings.warn('source iteration not converged. final tol={:.3e}'.format(norm), 
+				utils.ToleranceWarning, stacklevel=2)
 
 		return phi 

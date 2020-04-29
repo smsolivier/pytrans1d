@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings 
 
 from .qdf import * 
 from .sn import * 
 from .p1sa import * 
+from .. import utils 
 
 def JumpJumpQDFIntegrator(face, qdf):
 	xi1 = face.IPTrans(0)
@@ -152,7 +153,8 @@ class AbstractQD(Sn):
 			print('avg linear iters = {:.2f}'.format(self.avg_linit))
 
 		if (norm > tol):
-			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+			warnings.warn('source iteration not converged. final tol={:.3e}'.format(norm), 
+				utils.ToleranceWarning, stacklevel=2)
 
 		return phi 
 
@@ -232,6 +234,7 @@ class QDSA(Sn):
 				break 
 
 		if (norm > tol):
-			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+			warnings.warn('source iteration not converged. final tol={:.3e}'.format(norm), 
+				utils.ToleranceWarning, stacklevel=2)
 
 		return phi 

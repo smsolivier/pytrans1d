@@ -93,6 +93,11 @@ def test_quad_spat():
 	assert(qdf.EvalCp(face)==pytest.approx(abs(Jl(xf)/phil(xf))))
 	assert(qdf.EvalCm(face)==pytest.approx(abs(Jr(xf)/phir(xf))))
 
+def test_warning():
+	psi.Project(lambda x, mu: np.sin(3*np.pi*x))
+	with (pytest.warns(NegativityWarning)):
+		qdf.Compute(psi)
+
 N = 8
 quad = DoubleLegendreQuad(N)
 Ne = 25

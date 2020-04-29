@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings
+import pyamg 
 
 from .qdf import * 
 from .sn import * 
 from trans1d.fem.linsolver import * 
-import pyamg 
+from .. import utils 
 
 class AbstractVEF(Sn):
 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
@@ -69,7 +70,8 @@ class AbstractVEF(Sn):
 			print('avg linear iters = {:.2f}'.format(self.avg_linit))
 
 		if (norm > tol):
-			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+			warnings.warn('source iteration not converged. final tol={:.3e}'.format(norm), 
+				utils.ToleranceWarning, stacklevel=2)
 
 		return phi 
 
