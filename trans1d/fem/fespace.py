@@ -140,6 +140,15 @@ class GridFunction:
 			vals = func(nodes) 
 			self.SetDof(e, vals) 
 
+	def ProjectGF(self, gf):
+		for e in range(self.space.Ne):
+			el = self.space.el[e] 
+			nodes = el.nodes 
+			vals = np.zeros(len(nodes))
+			for n in range(len(nodes)):
+				vals[n] = gf.Interpolate(e, nodes[n]) 
+			self.SetDof(e, vals) 
+
 	def L2Error(self, ex, qorder):
 		from .quadrature import quadrature
 		l2 = 0 
