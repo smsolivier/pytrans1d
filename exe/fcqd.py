@@ -18,7 +18,7 @@ xe = np.linspace(0,1, Ne+1)
 leg = LegendreBasis(p)
 space = L2Space(xe, leg)
 
-eps = 1e-2
+eps = .99
 sigma_t = lambda x: 1/eps 
 sigma_s = lambda x: 1/eps - eps 
 
@@ -26,8 +26,9 @@ Q = lambda x, mu: eps
 psi_in = lambda x, mu: 0
 sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_in)
 psi = TVector(space, quad)
-qd = QD(space, space, sweep)
-phi = qd.SourceIteration(psi, tol=1e-12) 
+# qd = QD(space, space, sweep)
+qd = QDSA(sweep)
+phi = qd.SourceIteration(psi, tol=1e-9) 
 phi_sn = qd.ComputeScalarFlux(psi) 
 
 # p1sa = P1SA(sweep)

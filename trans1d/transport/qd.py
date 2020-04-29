@@ -182,6 +182,56 @@ class QD(AbstractQD):
 
 		return phi, J 
 
-# class QDLO(AbstractQD):
-# 	def __init__(self, phi_space, J_space, sweeper, lin_solver=None):
-# 		AbstractQD.__init__(self, phi_space, J_space, sweeper, lin_solver)
+class QDSA(Sn):
+	def __init__(self, sweeper):
+		Sn.__init__(self, sweeper)
+
+		p = self.space.basis.p 
+		self.sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x) 
+		self.qorder = qorder = 2*p+1
+		self.sigma_a = lambda x: sweeper.sigma_t(x) - sweeper.sigma_s(x)
+		self.Mt = Assemble(self.space, MassIntegrator, sweeper.sigma_t, qorder)
+		self.Ma = Assemble(self.space, MassIntegrator, self.sigma_a, qorder)
+		self.D = MixAssemble(self.space, self.space, WeakMixDivIntegrator, 1, qorder)
+		self.D += MixFaceAssembleAll(self.space, self.space, MixJumpAvgIntegrator, 1)
+
+		self.qdf = QDFactors(self.space, self.sweeper.quad, self.sweeper.psi_in) 
+
+	def Mult(self, psi, diff):
+		self.qdf.Compute(psi)
+		G = MixAssemble(self.space, self.space, MixWeakEddDivIntegrator, self.qdf, self.qorder)
+		Ma = self.Ma + FaceAssembleAll(self.space, UpwJumpJumpQDFIntegrator, self.qdf)
+		Mt = self.Mt + FaceAssembleAll(self.space, UpwFM1Integrator, self.qdf)
+		G += MixFaceAssembleAll(self.space, self.space, UpwFM2Integrator, self.qdf)
+
+		M = sp.bmat([[Mt, G], [self.D, Ma]])
+		rhs = np.concatenate((np.zeros(self.space.Nu), diff))
+		x = spla.spsolve(M.tocsc(), rhs)
+		phi = GridFunction(self.space)
+		phi.data = x[self.space.Nu:]
+		return phi 
+
+	def SourceIteration(self, psi, niter=50, tol=1e-6):
+		phi_old = GridFunction(self.space) 
+		phi = self.ComputeScalarFlux(psi) 
+		diff = GridFunction(self.space)
+		for n in range(niter):
+			start = time.time() 
+			phi_old.data = phi.data.copy()
+			self.sweeper.Sweep(psi, phi) 
+			phi = self.ComputeScalarFlux(psi) 
+			diff.data = phi.data - phi_old.data
+			scat = self.sweeper.FormScattering(diff).data*2
+			phi.data += self.Mult(psi, scat).data
+			norm = phi.L2Diff(phi_old, 2*self.p+1) 
+			if (self.LOUD):
+				el = time.time() - start 
+				print('i={:3}, norm={:.3e}, {:.2f} s/iter'.format(n+1, norm, el))
+
+			if (norm < tol):
+				break 
+
+		if (norm > tol):
+			print(colored('WARNING not converged! Final tol = {:.3e}'.format(norm), 'red'))
+
+		return phi 
