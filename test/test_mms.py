@@ -234,6 +234,7 @@ def FullQD(Ne, p):
 	sweep = DirectSweeper(space, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	qd = QD(space, space, sweep)
 	psi = TVector(space, quad)
+	psi.Project(lambda x, mu: 1)
 	phi = qd.SourceIteration(psi, tol=1e-12)
 
 	return phi.L2Error(phi_ex, 2*p+1)

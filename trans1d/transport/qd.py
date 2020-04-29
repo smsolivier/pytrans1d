@@ -124,7 +124,7 @@ class AbstractQD(Sn):
 		self.linit = [] 
 
 	def SourceIteration(self, psi, niter=50, tol=1e-6):
-		phi = GridFunction(self.phi_space)
+		phi = self.ComputeScalarFlux(psi)
 		phi_old = GridFunction(self.phi_space)
 		self.linit = []
 		for n in range(niter):
