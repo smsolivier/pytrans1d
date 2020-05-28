@@ -208,6 +208,17 @@ class GridFunction:
 			for n in range(len(w)):
 				l2 += self.Interpolate(e,ip[n])**2 * w[n] * el.Jacobian(ip[n]) 
 
+		return np.sqrt(l2) 
+
+	def DerivL2Norm(self, qorder):
+		from .quadrature import quadrature
+		l2 = 0 
+		ip, w = quadrature.Get(qorder)
+		for e in range(self.space.Ne):
+			el = self.space.el[e] 
+			for n in range(len(w)):
+				l2 += self.InterpolateGrad(e, ip[n])**2 * w[n] * el.Jacobian(ip[n]) 
+
 		return np.sqrt(l2) 		
 
 	def __rmul__(self, A):
@@ -223,6 +234,19 @@ class GridFunction:
 			for i in range(sub):
 				u[sub*e + i] = self.Interpolate(e, xi[i]) 
 				x[sub*e + i] = self.space.el[e].Transform(xi[i]) 
+
+		return x, u
+
+	def EvalDerivSubEl(self, a=2, b=1):
+		sub = a*(self.space.basis.p+1) + b 
+		Ne = self.space.Ne 
+		x = np.zeros(Ne*sub)
+		u = np.zeros(Ne*sub)
+		for e in range(Ne):
+			xi = np.linspace(-1,1, sub)
+			for i in range(len(xi)):
+				u[sub*e + i] = self.InterpolateGrad(e, xi[i])
+				x[sub*e + i] = self.space.el[e].Transform(xi[i])
 
 		return x, u
 
