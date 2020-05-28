@@ -190,6 +190,8 @@ class AMGSolver(IterativeSolver):
 	def __init__(self, itol, maxiter, inner=1, LOUD=False):
 		IterativeSolver.__init__(self, itol, maxiter, LOUD)
 		self.inner = inner 
+		if (self.inner!=1):
+			raise NotImplementedError('only inner=1 supported')
 
 	def Solve(self, A, b):
 		self.it = 0
