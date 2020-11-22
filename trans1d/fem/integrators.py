@@ -111,6 +111,16 @@ def VEFPoissonIntegrator(el, c, qorder):
 
 	return elmat 
 
+def ConvectionIntegrator(el, c, qorder):
+	ip, w = quadrature.Get(qorder)
+	elmat = np.zeros((el.Nn, el.Nn))
+	for n in range(len(w)):
+		s = el.CalcShape(ip[n])
+		g = el.CalcPhysGradShape(ip[n])
+		linalg.AddOuter(c*w[n]*el.Jacobian(ip[n]), s, g, elmat) 
+
+	return elmat 
+
 def WeakConvectionIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el.Nn, el.Nn))
