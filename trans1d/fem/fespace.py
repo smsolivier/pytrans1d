@@ -152,9 +152,10 @@ class GridFunction:
 	def L2Error(self, ex, qorder):
 		from .quadrature import quadrature
 		l2 = 0 
-		ip, w = quadrature.Get(qorder)
+		# ip, w = quadrature.Get(qorder)
 		for e in range(self.space.Ne):
 			el = self.space.el[e]
+			ip, w = quadrature.GetLumped(el)
 			for n in range(len(w)):
 				X = el.Transform(ip[n]) 
 				exact = ex(X) 
@@ -209,6 +210,20 @@ class GridFunction:
 				l2 += self.Interpolate(e,ip[n])**2 * w[n] * el.Jacobian(ip[n]) 
 
 		return np.sqrt(l2) 
+
+	def LinfError(self, ex, qorder):
+		from .quadrature import quadrature
+		linf = 0 
+		ip, w = quadrature.Get(qorder)
+		for e in range(self.space.Ne):
+			el = self.space.el[e]
+			for n in range(len(w)):
+				X = el.Transform(ip[n]) 
+				err = abs(ex(X) - self.Interpolate(e, ip[n]))
+				if (err>linf):
+					linf = err 
+
+		return err 
 
 	def DerivL2Norm(self, qorder):
 		from .quadrature import quadrature
