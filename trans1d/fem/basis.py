@@ -10,20 +10,20 @@ def GenLobatto(p):
 	rule = quadpy.line_segment.gauss_lobatto(N)
 	# ip = np.around(rule.points, 14) 
 	ip = rule.points 
-	B, dB = SolveVandermonde(ip)
-	return ip, B, dB
+	B, dB, V = SolveVandermonde(ip)
+	return ip, B, dB, V
 
 def GenLagrange(p):
 	N = p+1 
 	ip = np.linspace(-1,1,N)
-	B, dB = SolveVandermonde(ip)
-	return ip, B, dB 
+	B, dB, V = SolveVandermonde(ip)
+	return ip, B, dB, V
 
 def GenLegendre(p):
 	N = p+1 
 	ip, w = np.polynomial.legendre.leggauss(N)
-	B, dB = SolveVandermonde(ip)
-	return ip, B, dB 
+	B, dB, V = SolveVandermonde(ip)
+	return ip, B, dB, V 
 
 def SolveVandermonde(ip):
 	N = len(ip) 
@@ -45,13 +45,13 @@ def SolveVandermonde(ip):
 		B[:,i] = coef[i,::-1]
 		dB[:,i] = np.polyder(B[:,i])
 
-	return B, dB 
+	return B, dB, A
 
 class BasisCollection:
 	def __init__(self, p, genfun):
 		self.p = p 
 		self.N = self.p+1 
-		self.ip, self.B, self.dB = genfun(p) 
+		self.ip, self.B, self.dB, self.V = genfun(p) 
 
 class LegendreBasis(BasisCollection):
 	def __init__(self, p):
