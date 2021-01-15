@@ -55,4 +55,11 @@ class DirectSweeper(AbstractSweeper):
 		for a in range(self.N):
 			angle = self.lu[a].solve(self.RHS[a] + scat.data) 
 			psi.SetAngle(a, angle) 
+
+	def FormInverse(self):
+		inv = [] 
+		for a in range(self.quad.N):
+			inv.append(spla.inv(self.LHS[a]))
+
+		return sp.block_diag(inv) 
 			
