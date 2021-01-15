@@ -10,23 +10,28 @@ from .. import utils
 class TVector:
 	def __init__(self, space, quad):
 		self.N = quad.N
+		self.Nu = space.Nu 
 		self.space = space 
 		self.quad = quad 
-		self.gf = [] 
-		for n in range(self.N):
-			self.gf.append(GridFunction(self.space))
+		self.data = np.zeros(self.Nu * self.N) 
 
 	def GetAngle(self, angle):
-		return self.gf[angle]
+		# return self.gf[angle]
+		gf = GridFunction(self.space)
+		gf.data = self.data[angle*self.Nu:(angle+1)*self.Nu] 
+		return gf 
 
 	def SetAngle(self, angle, gf):
 		assert(isinstance(gf, np.ndarray))
-		self.gf[angle].data = gf
+		# self.gf[angle].data = gf
+		self.data[angle*self.Nu:(angle+1)*self.Nu] = gf
 
 	def Project(self, f):
 		for a in range(self.N):
 			spat = lambda x: f(x, self.quad.mu[a])
-			self.gf[a].Project(spat) 
+			gf = GridFunction(self.space)
+			gf.Project(spat) 
+			self.SetAngle(a, gf.data) 
 
 class Sn:
 	def __init__(self, sweeper):
