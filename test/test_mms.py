@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from trans1d import * 
 import pytest 
@@ -239,11 +239,95 @@ def FullQD(Ne, p):
 
 	return phi.L2Error(phi_ex, 2*p+1)
 
+def OnlySIPVEF(Ne, p):
+	N = 6
+	quad = LegendreQuad(N)
+	xe = np.linspace(0,1,Ne+1)
+	fes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LegendreBasis(p))
+	tfes2 = L2Space(xe, LegendreBasis(p+1))
+
+	alpha = 1 
+	beta = .1
+	gamma = .05
+	delta = 10
+	eta = .1
+	eps = 1e-1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1/eps
+	sigma_s = lambda x: 1/eps - eps
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+	
+	Q0 = np.zeros(fes.Nu)
+	Q1 = np.zeros(fes.Nu)
+	for a in range(quad.N):
+		mu = quad.mu[a]
+		Q0 += AssembleRHS(fes, DomainIntegrator, lambda x: Q(x,mu), 2*p+1)*quad.w[a]
+		Q1 += AssembleRHS(fes, GradDomainIntegrator, 
+			lambda x: Q(x,mu)/sigma_t(x), 2*p+1)*mu*quad.w[a]
+		Q1 += FaceAssembleRHS(fes, SourceSIP, 
+			lambda x: Q(x,mu)/sigma_t(x))*mu*quad.w[a]
+
+	qdf = QDFactors(tfes, quad, psi_ex) 
+	psi = TVector(tfes, quad)
+	psi.Project(psi_ex)
+	qdf.Compute(psi)
+	qdf2 = QDFactors(tfes2, quad, psi_ex) 
+	psi2 = TVector(tfes2, quad)
+	psi2.Project(psi_ex)
+	qdf2.Compute(psi2)
+	b = Q0 + Q1 + BdrFaceAssembleRHS(fes, SIPInflow, qdf2)
+
+	K = Assemble(fes, VEFPoissonIntegrator, [qdf2, sigma_t], 2*p+1)
+	Ma = Assemble(fes, MassIntegrator, sigma_a, 2*p+1)
+	F = FaceAssemble(fes, VEFSIPIntegrator, [sigma_t, qdf2, (p+1)**2]) \
+		+ BdrFaceAssemble(fes, SIPBC, qdf2)
+
+	M = K + Ma + F 
+	phi = GridFunction(fes)
+	phi.data = spla.spsolve(M, b)
+	return phi.L2Error(phi_ex, 2*p+1)
+
+def FullSIPVEF(Ne, p):
+	N = 6
+	quad = LegendreQuad(N)
+	xe = np.linspace(0,1,Ne+1)
+	fes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LegendreBasis(p))
+
+	alpha = 1 
+	beta = .1
+	gamma = .1
+	delta = 10
+	eta = .1
+	eps = 1e-1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1/eps
+	sigma_s = lambda x: 1/eps - eps
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	sweep = DirectSweeper(tfes, quad, sigma_t, sigma_s, Q, psi_ex, False)
+	vef = SIPVEF(fes, sweep)
+	psi = TVector(tfes, quad)
+	psi.Project(lambda x, mu: 1)
+	phi = vef.SourceIteration(psi, tol=1e-10)
+	return phi.L2Error(phi_ex, 2*p+1)
+
 Ne = 10
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
 @pytest.mark.parametrize('solver', [H1Diffusion, Transport, 
 	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
-	FullVEFH2, FullQD])
+	FullVEFH2, FullQD, OnlySIPVEF, FullSIPVEF])
 def test_ooa(solver, p):
 	with warnings.catch_warnings():
 		warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
@@ -253,5 +337,5 @@ def test_ooa(solver, p):
 		E2 = solver(2*Ne, p)
 	ooa = np.log2(E1/E2)
 	if (abs(p+1-ooa)>.15):
-		print('{:.3e}, {:.3e}'.format(E1, E2))
+		print('p={:.3f} ({:.3e}, {:.3e})'.format(ooa, E1, E2))
 	assert(abs(p+1-ooa)<.15)

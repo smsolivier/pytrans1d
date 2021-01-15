@@ -5,4 +5,6 @@ from .qdf import *
 from .s2sa import * 
 from .sn import * 
 from .sweep import * 
-from .vef import * 
+from .vef import *
+from .analytic_diffusion import *
+from .sipvef import * 
