@@ -328,9 +328,12 @@ def BdrFaceAssemble(space, integrator, c):
 		elmat = integrator(face_t, c) 
 		dof1 = space.dofs[face_t.el1.ElNo]
 		dof2 = space.dofs[face_t.el2.ElNo] 
-		coo[dof1, dof2] = elmat 
+		coo[dof1, dof1] = elmat 
 
 	return coo.Get()
+
+def FaceAssembleAll(space, integrator, c):
+	return FaceAssemble(space, integrator, c) + BdrFaceAssemble(space, integrator, c)
 
 def MixFaceAssemble(space1, space2, integrator, c):
 	coo = COOBuilder(space1.Nu, space2.Nu)
@@ -368,5 +371,14 @@ def BdrFaceAssembleRHS(space, integrator, c):
 
 	return b
 
-def FaceAssembleAll(space, integrator, c):
-	return FaceAssemble(space, integrator, c) + BdrFaceAssemble(space, integrator, c)
+def FaceAssembleRHS(space, integrator, c):
+	b = np.zeros(space.Nu)
+	for face_t in space.iface: 
+		elvec = integrator(face_t, c)
+		dofs = np.concatenate((space.dofs[face_t.el1.ElNo], space.dofs[face_t.el2.ElNo]))
+		b[dofs] += elvec 
+
+	return b
+
+def FaceAssembleAllRHS(space, integrator, c):
+	return FaceAssembleRHS(space, integrator, c) + BdrFaceAssembleRHS(space, integrator, c)
