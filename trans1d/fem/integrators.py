@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from .quadrature import quadrature 
 from .fespace import *
@@ -41,6 +40,10 @@ def MassIntegrator(el, c, qorder):
 		linalg.AddOuter(coef*w[n]*el.Jacobian(ip[n]), s, s, elmat) 
 
 	return elmat 
+
+def InverseMassIntegrator(el, c, qorder):
+	M = MassIntegrator(el, c, qorder)
+	return np.linalg.inv(M)
 
 def MassIntegratorLumped(el, c, qorder):
 	ip, w = quadrature.GetLumped(el)
@@ -187,7 +190,7 @@ def MixJumpAvgIntegrator(face1, face2, c):
 
 	s21 = face2.el1.CalcShape(xi1)
 	s22 = face2.el2.CalcShape(xi2)
-	avg = .5*np.concatenate((s21, s22))
+	avg = (1 if face1.boundary else .5)*np.concatenate((s21, s22))
 
 	return linalg.Outer(c*face1.nor, jump, avg)
 
