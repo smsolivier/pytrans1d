@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
-
 import quadpy 
 
 def GenLobatto(p):
 	N = p+1 
-	rule = quadpy.line_segment.gauss_lobatto(N)
+	rule = quadpy.c1.gauss_lobatto(N)
 	# ip = np.around(rule.points, 14) 
 	ip = rule.points 
 	B, dB, V = SolveVandermonde(ip)
