@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
 import sys 
 
 from .element import * 
@@ -27,7 +26,7 @@ class FaceTrans:
 		self.nor = edge 
 
 	def IPTrans(self, e):
-		return self.ip[e] 
+		return self.ip[0 if self.boundary else e]
 
 	def __repr__(self):
 		return 'e = {}, e\' = {}, bdr = {}, nor = {}'.format(
