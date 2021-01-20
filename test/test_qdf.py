@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from trans1d import * 
 import pytest
@@ -97,6 +96,24 @@ def test_warning():
 	psi.Project(lambda x, mu: np.sin(3*np.pi*x))
 	with (pytest.warns(NegativityWarning)):
 		qdf.Compute(psi)
+
+def test_interface():
+	# psi_ex, phi_ex, Jl, Jr, phil, phir, E, dE, G = SetupMMS(
+	# 	1, .1, .1, 1, .1, lambda x: 1, lambda x: .9) 
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	psi.Project(psi_ex)
+	qdf.Compute(psi)
+	for face in (space.iface + space.bface):
+		E1 = qdf.EvalFactor(face.el1, face.IPTrans(0))
+		E2 = qdf.EvalFactor(face.el2, face.IPTrans(1))
+		assert(abs(E1 - E2)==pytest.approx(0,abs=1e-10))
 
 N = 8
 quad = DoubleLegendreQuad(N)

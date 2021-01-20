@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-# import matplotlib.pyplot as plt
-
+from scipy import optimize
 from trans1d import * 
 import pytest 
 
@@ -41,8 +40,7 @@ def Transport(Ne, p):
 	sn = Sn(sweep) 
 	phi = sn.SourceIteration(psi, tol=1e-12)
 	phi_ex = lambda x: np.sin(np.pi*x) 
-	return phi.L2Error(phi_ex, 2*p+1)
-
+	return phi.L2Error(phi_ex, 2*p+2)
 
 def FullVEF(Ne, p):
 	N = 8 
@@ -244,8 +242,7 @@ def OnlySIPVEF(Ne, p):
 	quad = LegendreQuad(N)
 	xe = np.linspace(0,1,Ne+1)
 	fes = L2Space(xe, LegendreBasis(p))
-	tfes = L2Space(xe, LegendreBasis(p))
-	tfes2 = L2Space(xe, LegendreBasis(p+1))
+	tfes = L2Space(xe, LobattoBasis(p))
 
 	alpha = 1 
 	beta = .1
@@ -263,46 +260,23 @@ def OnlySIPVEF(Ne, p):
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 	
-	Q0 = np.zeros(fes.Nu)
-	Q1 = np.zeros(fes.Nu)
-	for a in range(quad.N):
-		mu = quad.mu[a]
-		Q0 += AssembleRHS(fes, DomainIntegrator, lambda x: Q(x,mu), 2*p+1)*quad.w[a]
-		Q1 += AssembleRHS(fes, GradDomainIntegrator, 
-			lambda x: Q(x,mu)/sigma_t(x), 2*p+1)*mu*quad.w[a]
-		Q1 += FaceAssembleRHS(fes, SourceSIP, 
-			lambda x: Q(x,mu)/sigma_t(x))*mu*quad.w[a]
-
-	qdf = QDFactors(tfes, quad, psi_ex) 
+	qdf = QDFactors(tfes, quad, psi_ex)
+	sip = SIPVEF(fes, qdf, sigma_t, sigma_s, Q)
 	psi = TVector(tfes, quad)
 	psi.Project(psi_ex)
-	qdf.Compute(psi)
-	qdf2 = QDFactors(tfes2, quad, psi_ex) 
-	psi2 = TVector(tfes2, quad)
-	psi2.Project(psi_ex)
-	qdf2.Compute(psi2)
-	b = Q0 + Q1 + BdrFaceAssembleRHS(fes, SIPInflow, qdf2)
-
-	K = Assemble(fes, VEFPoissonIntegrator, [qdf2, sigma_t], 2*p+1)
-	Ma = Assemble(fes, MassIntegrator, sigma_a, 2*p+1)
-	F = FaceAssemble(fes, VEFSIPIntegrator, [sigma_t, qdf2, (p+1)**2]) \
-		+ BdrFaceAssemble(fes, SIPBC, qdf2)
-
-	M = K + Ma + F 
-	phi = GridFunction(fes)
-	phi.data = spla.spsolve(M, b)
-	return phi.L2Error(phi_ex, 2*p+1)
+	phi = sip.Mult(psi)
+	return phi.L2Error(phi_ex, 2*p+2)
 
 def FullSIPVEF(Ne, p):
 	N = 6
 	quad = LegendreQuad(N)
 	xe = np.linspace(0,1,Ne+1)
 	fes = L2Space(xe, LegendreBasis(p))
-	tfes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LobattoBasis(p+1))
 
 	alpha = 1 
 	beta = .1
-	gamma = .1
+	gamma = 1
 	delta = 10
 	eta = .1
 	eps = 1e-1
@@ -310,24 +284,63 @@ def FullSIPVEF(Ne, p):
 	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
 		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
 	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
-	sigma_t = lambda x: 1/eps
-	sigma_s = lambda x: 1/eps - eps
+	sigma_t = lambda x: 1
+	sigma_s = lambda x: .1
 	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
 	Q = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
 		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
 
 	sweep = DirectSweeper(tfes, quad, sigma_t, sigma_s, Q, psi_ex, False)
-	vef = SIPVEF(fes, sweep)
+	qdf = QDFactors(tfes, quad, psi_ex)
+	vef = SIPVEF(fes, qdf, sigma_t, sigma_s, Q)
 	psi = TVector(tfes, quad)
 	psi.Project(lambda x, mu: 1)
-	phi = vef.SourceIteration(psi, tol=1e-10)
-	return phi.L2Error(phi_ex, 2*p+1)
+	npi = NPI(sweep, vef, fes, psi)
+	phi = GridFunction(fes)
 
-Ne = 10
+	phi.data = optimize.newton_krylov(npi.F, np.ones(fes.Nu), f_tol=1e-10, maxiter=25)
+	return phi.L2Error(phi_ex, 2*p+2)
+
+def FullLDGVEF(Ne, p):
+	xe = np.linspace(0,1,Ne+1)
+	sfes = L2Space(xe, LegendreBasis(p))
+	vfes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LegendreBasis(p))
+	quad = LegendreQuad(6)
+
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1 
+	sigma_s = lambda x: .1
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	source = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	qdf = QDFactors(tfes, quad, psi_ex)
+	ldg = LDGVEF(sfes, vfes, qdf, sigma_t, sigma_s, source)
+	sip = SIPVEF(sfes, qdf, sigma_t, sigma_s, source)
+	sweeper = DirectSweeper(tfes, quad, sigma_t, sigma_s, source, psi_ex, False)
+
+	psi = TVector(tfes, quad)
+	psi.Project(lambda x, mu: 1)
+	npi = NPI(sweeper, ldg, sfes, psi)
+	phi = GridFunction(sfes)
+
+	phi.data = optimize.anderson(npi.F, np.ones(sfes.Nu), maxiter=25, f_tol=1e-10)
+	return phi.L2Error(phi_ex, 2*p+2)
+
+Ne = 7
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
 @pytest.mark.parametrize('solver', [H1Diffusion, Transport, 
 	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
-	FullVEFH2, FullQD, OnlySIPVEF, FullSIPVEF])
+	FullVEFH2, OnlySIPVEF, FullSIPVEF, FullLDGVEF])
 def test_ooa(solver, p):
 	with warnings.catch_warnings():
 		warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
@@ -336,6 +349,5 @@ def test_ooa(solver, p):
 		E1 = solver(Ne, p)
 		E2 = solver(2*Ne, p)
 	ooa = np.log2(E1/E2)
-	if (abs(p+1-ooa)>.15):
-		print('p={:.3f} ({:.3e}, {:.3e})'.format(ooa, E1, E2))
-	assert(abs(p+1-ooa)<.15)
+	print('p={:.3f} ({:.3e}, {:.3e})'.format(ooa, E1, E2))
+	assert(abs(p+1-ooa)<=.2)
