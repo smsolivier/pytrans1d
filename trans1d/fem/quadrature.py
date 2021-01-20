@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.integrate import newton_cotes 
 import sys 
 from .basis import * 
+import math 
 
 class Quadrature: 
 	def __init__(self):
@@ -15,14 +15,14 @@ class Quadrature:
 		self.nc_ip = [] 
 		self.nc_w = [] 
 
-		pmax = 50
-		for p in range(1, pmax):
+		self.pmax = 50
+		for p in range(1, self.pmax):
 			ip, w = np.polynomial.legendre.leggauss(p)
 			self.leg_ip.append(ip)
 			self.leg_w.append(w) 
 
-		for p in range(2, pmax):
-			rule = quadpy.line_segment.gauss_lobatto(p) 
+		for p in range(2, self.pmax):
+			rule = quadpy.c1.gauss_lobatto(p) 
 			# self.lob_ip.append(np.around(rule.points, 14))
 			self.lob_ip.append(rule.points) 
 			self.lob_w.append(rule.weights) 
@@ -34,7 +34,9 @@ class Quadrature:
 			self.nc_w.append(w) 
 
 	def Get(self, p):
-		return self.leg_ip[p-1], self.leg_w[p-1]
+		idx = math.ceil((p+1)/2)-1
+		assert(idx<self.pmax)
+		return self.leg_ip[idx], self.leg_w[idx]
 
 	def GetLumped(self, el):
 		basis = el.basis
