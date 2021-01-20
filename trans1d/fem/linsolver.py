@@ -243,3 +243,22 @@ class AMGSolver(IterativeSolver):
 		self.Cleanup(info)
 
 		return x
+
+class FixedPointIteration(IterativeSolver):
+	def __init__(self, F, itol, maxiter, LOUD=False):
+		self.F = F 
+		IterativeSolver.__init__(self, itol, maxiter, LOUD) 
+
+	def Solve(self, u):
+		self.it = 0 
+		for k in range(self.maxiter):
+			f = self.F(u) 
+			norm = np.linalg.norm(f)
+			if (norm < self.itol):
+				break		
+
+			self.Callback(f)
+			u -= f 
+
+		self.Cleanup(0)
+		return u 
