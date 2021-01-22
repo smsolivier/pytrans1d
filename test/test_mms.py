@@ -25,6 +25,16 @@ def H1Diffusion(Ne, p):
 
 	return err 
 
+def BR2Diffusion(Ne, p):
+	xe = np.linspace(0,1,Ne+1)
+	space = L2Space(xe, LegendreBasis(p))
+	K = Assemble(space, WeakPoissonIntegrator, lambda x: 1, 2*p+1) \
+		+ FaceAssembleAll(space, BR2Integrator, 5)
+	b = AssembleRHS(space, DomainIntegrator, lambda x: np.pi**2*np.sin(np.pi*x), 2*p+1)
+	phi = GridFunction(space)
+	phi.data = spla.spsolve(K, b)
+	return phi.L2Error(lambda x: np.sin(np.pi*x), 2*p+2)
+
 def Transport(Ne, p):
 	N = 8
 	quad = LegendreQuad(N)
@@ -338,7 +348,7 @@ def FullLDGVEF(Ne, p):
 
 Ne = 7
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
-@pytest.mark.parametrize('solver', [H1Diffusion, Transport, 
+@pytest.mark.parametrize('solver', [H1Diffusion, BR2Diffusion, Transport, 
 	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
 	FullVEFH2, OnlySIPVEF, FullSIPVEF, FullLDGVEF])
 def test_ooa(solver, p):
