@@ -21,8 +21,8 @@ class AbstractSweeper:
 
 	def FormScattering(self, phi):
 		scat = GridFunction(self.space)
-		if (self.Ms.shape[1]!=phi.space.Nu):
-			self.Ms = MixAssemble(self.space, phi.space, MixMassIntegrator, self.sigma_s, 2*self.space.basis.p+1)
+		# if (self.Ms.shape[1]!=phi.space.Nu):
+		self.Ms = MixAssemble(self.space, phi.space, MixMassIntegrator, self.sigma_s, 2*self.space.basis.p+1)
 		scat.data = self.Ms * phi.data * .5 
 		return scat 
 
