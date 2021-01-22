@@ -40,6 +40,44 @@ def VEFSIPIntegrator(face_t, c):
 	pen = np.outer(jump, jump)*kappa/h
 	return -elmat - elmat.T + pen  
 
+def VEFBR2Integrator(face_t, c):
+	sigma_t = c[0]
+	qdf = c[1]
+	kappa = c[2] 
+	xi1 = face_t.IPTrans(0)
+	xi2 = face_t.IPTrans(1)
+	X1 = face_t.el1.Transform(xi1)
+	X2 = face_t.el2.Transform(xi2)
+	sigma1 = sigma_t(X1)
+	sigma2 = sigma_t(X2) 
+	s1 = face_t.el1.CalcShape(xi1)
+	s2 = face_t.el2.CalcShape(xi2)
+	jump = np.concatenate((s1, -s2))
+
+	Eu = qdf.EvalFactorBdr(face_t)
+	E1 = qdf.EvalFactor(face_t.el1, xi1)
+	E2 = qdf.EvalFactor(face_t.el2, xi2)
+	Es = E1 if face_t.el1.ElNo < face_t.el2.ElNo else E2 
+	dE1 = qdf.EvalFactorDeriv(face_t.el1, xi1)
+	dE2 = qdf.EvalFactorDeriv(face_t.el2, xi2)
+	dEs = dE1 if face_t.el1.ElNo < face_t.el2.ElNo else dE2 
+	gs1 = face_t.el1.CalcPhysGradShape(xi1)*Es
+	gs2 = face_t.el2.CalcPhysGradShape(xi2)*Es
+	sd1 = s1*dEs
+	sd2 = s2*dEs
+	avg = np.concatenate(((gs1+sd1)/sigma1, (gs2+sd2)/sigma2)) * (1 if face_t.boundary else .5) * face_t.nor
+	jga = np.outer(jump, avg)
+
+	a = np.concatenate((s1, s2)) * (1 if face_t.boundary else .5) 
+	B = -np.outer(a,jump)
+
+	m = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
+	minv = np.linalg.inv(m) 
+	Minv = np.block([[minv,0*minv], [0*minv,minv]])
+	br = kappa*np.linalg.multi_dot([B.T, Minv, B])
+
+	return br - jga - jga.T
+
 def SourceSIP(face_t, c):
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
@@ -100,3 +138,19 @@ class SIPVEF:
 		phi = GridFunction(self.fes)
 		phi.data = spla.spsolve(M, self.Q)
 		return phi 
+
+class BR2VEF(SIPVEF):
+	def __init__(self, fes, qdf, sigma_t, sigma_s, source):
+		SIPVEF.__init__(self, fes, qdf, sigma_t, sigma_s, source)
+
+	def Mult(self, psi):
+		self.qdf.Compute(psi)
+		p = self.fes.basis.p 
+		K = Assemble(self.fes, VEFPoissonIntegrator, [self.qdf, self.sigma_t], 2*p+1)
+		F = FaceAssemble(self.fes, VEFBR2Integrator, [self.sigma_t, self.qdf, 5]) \
+			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf)
+
+		A = K + self.Ma + F 
+		phi = GridFunction(self.fes)
+		phi.data = spla.spsolve(A, self.Q)
+		return phi
