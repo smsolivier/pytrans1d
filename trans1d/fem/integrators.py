@@ -202,6 +202,28 @@ def JumpJumpIntegrator(face, c):
 	jump = np.concatenate((s1, -s2))
 	return linalg.Outer(c, jump, jump)
 
+def BR2Integrator(face_t, c):
+	xi1 = face_t.IPTrans(0)
+	xi2 = face_t.IPTrans(1)
+
+	s1 = face_t.el1.CalcShape(xi1)
+	s2 = face_t.el2.CalcShape(xi2)
+	j = np.concatenate((s1, -s2))
+
+	gs1 = face_t.el1.CalcPhysGradShape(xi1)
+	gs2 = face_t.el2.CalcPhysGradShape(xi2)
+	ga = np.concatenate((gs1, gs2)) * (1 if face_t.boundary else .5) * face_t.nor 
+	jga = np.outer(j,ga)
+
+	a = np.concatenate((s1, s2)) * (1 if face_t.boundary else .5) 
+	B = -np.outer(a,j)
+
+	m = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
+	minv = np.linalg.inv(m) 
+	Minv = np.block([[minv,0*minv], [0*minv,minv]])
+	br = c*np.linalg.multi_dot([B.T, Minv, B])
+	return br - jga - jga.T 
+
 def MixWeakEddDivIntegrator(el1, el2, qdf, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el1.Nn, el2.Nn))
