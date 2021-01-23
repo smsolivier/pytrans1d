@@ -26,13 +26,14 @@ def VEFSIPIntegrator(face_t, c):
 	E1 = qdf.EvalFactor(face_t.el1, xi1)
 	E2 = qdf.EvalFactor(face_t.el2, xi2)
 	Es = E1 if face_t.el1.ElNo < face_t.el2.ElNo else E2 
+	dEu = qdf.EvalFactorDerivBdr(face_t)
 	dE1 = qdf.EvalFactorDeriv(face_t.el1, xi1)
 	dE2 = qdf.EvalFactorDeriv(face_t.el2, xi2)
 	dEs = dE1 if face_t.el1.ElNo < face_t.el2.ElNo else dE2 
-	gs1 = face_t.el1.CalcPhysGradShape(xi1)*E1
-	gs2 = face_t.el2.CalcPhysGradShape(xi2)*E2
-	sd1 = s1*dEs
-	sd2 = s2*dEs
+	gs1 = face_t.el1.CalcPhysGradShape(xi1)*Eu
+	gs2 = face_t.el2.CalcPhysGradShape(xi2)*Eu
+	sd1 = s1*dEu
+	sd2 = s2*dEu
 	avg = np.concatenate(((gs1+sd1)/sigma1, (gs2+sd2)/sigma2)) * (1 if face_t.boundary else .5) * face_t.nor
 
 	elmat = np.outer(jump, avg)

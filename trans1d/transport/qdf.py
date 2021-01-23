@@ -49,6 +49,32 @@ class QDFactors:
 
 		return (dP*phi - P*dphi)/phi**2 
 
+	def EvalFactorDerivBdr(self, face):
+		e = face.el1.ElNo
+		ep = face.el2.ElNo 
+		P = 0 
+		dP = 0 
+		phi = 0 
+		dphi = 0 
+		for a in range(self.N):
+			mu = self.mu[a] 
+			w = self.w[a] 
+			if (mu*face.nor>0 or face.boundary):
+				elno = e 
+				xi = face.IPTrans(0)
+			else:
+				elno = ep 
+				xi = face.IPTrans(1)
+			psi = self.psi.GetAngle(a)
+			psi_at_ip = psi.Interpolate(elno, xi)
+			dpsi_at_ip = psi.InterpolateGrad(elno, xi)
+			P += mu**2 * w * psi_at_ip
+			dP += mu**2 * w * dpsi_at_ip 
+			phi += w * psi_at_ip 
+			dphi += w * dpsi_at_ip 
+
+		return (dP*phi - P*dphi)/phi**2 
+
 	def EvalFactorBdr(self, face):
 		P = 0 
 		phi = 0 
