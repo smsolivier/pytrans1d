@@ -14,15 +14,15 @@ def MixVEFJumpAvg(face1, face2, qdf):
 	xi2 = face1.IPTrans(1)
 	s11 = face1.el1.CalcShape(xi1)
 	s12 = face1.el2.CalcShape(xi2)
+	jump = np.concatenate((s11, -s12))
+
 	E1 = qdf.EvalFactor(face1.el1, xi1)
 	E2 = qdf.EvalFactor(face1.el2, xi2)
 	Eu = qdf.EvalFactorBdr(face1)
 	Es = E1 if face1.el1.ElNo > face1.el2.ElNo else E2
-	# jump = np.concatenate((s11*E1, -s12*E2))
-	jump = np.concatenate((s11, -s12))*Es
-
-	s21 = face2.el1.CalcShape(xi1)
-	s22 = face2.el2.CalcShape(xi2)
+	Ea = .5*(E1 + E2)
+	s21 = face2.el1.CalcShape(xi1)*E1
+	s22 = face2.el2.CalcShape(xi2)*E2
 	avg = (1 if face1.boundary else .5)*np.concatenate((s21, s22))
 
 	return linalg.Outer(face1.nor, jump, avg)
