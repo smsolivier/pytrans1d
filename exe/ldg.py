@@ -30,13 +30,14 @@ def Error(Ne, p):
 
 	qdf = QDFactors(tfes, quad, psi_ex)
 	ldg = LDGVEF(sfes, vfes, qdf, sigma_t, sigma_s, source)
+	lldg = LiftedLDGVEF(sfes, qdf, sigma_t, sigma_s, source)
 	sip = SIPVEF(sfes, qdf, sigma_t, sigma_s, source)
 	br2 = BR2VEF(sfes, qdf, sigma_t, sigma_s, source)
 	sweeper = DirectSweeper(tfes, quad, sigma_t, sigma_s, source, psi_ex, False)
 
 	psi = TVector(tfes, quad)
 	psi.Project(lambda x, mu: 1)
-	npi = NPI(sweeper, sip, sfes, psi)
+	npi = NPI(sweeper, ldg, sfes, psi)
 	phi = GridFunction(sfes)
 	global it
 	global norm 

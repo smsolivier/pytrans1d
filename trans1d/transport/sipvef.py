@@ -132,6 +132,30 @@ def SIPBC(face_t, qdf):
 	Eb = qdf.EvalG(face_t)
 	return linalg.Outer(Eb, s,s)
 
+def LDGLiftIntegrator(face_t, c):
+	sigma_t = c[0]
+	qdf = c[1]
+	xi1 = face_t.IPTrans(0)
+	xi2 = face_t.IPTrans(1)
+	X1 = face_t.el1.Transform(xi1)
+	X2 = face_t.el2.Transform(xi2)
+	sigma1 = sigma_t(X1)
+	sigma2 = sigma_t(X2) 
+	s1 = face_t.el1.CalcShape(xi1)
+	s2 = face_t.el2.CalcShape(xi2)
+	jump = np.concatenate((s1, -s2))
+	avg = np.concatenate((s1, s2)) * (1 if face_t.boundary else .5) * face_t.nor 
+
+	E1 = qdf.EvalFactor(face_t.el1, xi1)
+	E2 = qdf.EvalFactor(face_t.el2, xi2)
+	Ejump = np.concatenate((s1*E1/sigma1, -s2*E2/sigma2)) 
+
+	m = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
+	minv = np.linalg.inv(m) 
+	Minv = np.block([[minv,0*minv], [0*minv,minv]])
+	ldg = np.linalg.multi_dot([np.outer(jump, avg), Minv, np.outer(avg, Ejump)])
+	return ldg 
+
 class SIPVEF:
 	def __init__(self, fes, qdf, sigma_t, sigma_s, source):
 		self.fes = fes 
@@ -182,3 +206,20 @@ class BR2VEF(SIPVEF):
 		phi = GridFunction(self.fes)
 		phi.data = spla.spsolve(A, self.Q)
 		return phi
+
+class LiftedLDGVEF(SIPVEF):
+	def __init__(self, fes, qdf, sigma_t, sigma_s, source):
+		SIPVEF.__init__(self, fes, qdf, sigma_t, sigma_s, source)
+
+	def Mult(self, psi):
+		self.qdf.Compute(psi)
+		p = self.fes.basis.p 
+		K = Assemble(self.fes, VEFPoissonIntegrator, [self.qdf, self.sigma_t], 2*p+1)
+		F = FaceAssemble(self.fes, VEFSIPIntegratorNew, [self.sigma_t, self.qdf, self.fes.Ne*(p+1)**2]) \
+			+ FaceAssemble(self.fes, LDGLiftIntegrator, [self.sigma_t, self.qdf]) \
+			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf)
+
+		A = K + self.Ma + F
+		phi = GridFunction(self.fes)
+		phi.data = spla.spsolve(A, self.Q)
+		return phi 
