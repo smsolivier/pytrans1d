@@ -10,13 +10,13 @@ def Error(Ne, p):
 	xe = np.linspace(0,1,Ne+1)
 	sfes = L2Space(xe, LegendreBasis(p))
 	vfes = L2Space(xe, LegendreBasis(p))
-	tfes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LobattoBasis(p))
 	quad = LegendreQuad(6)
 
 	alpha = 1 
 	beta = .1
 	gamma = 1
-	delta = 1
+	delta = 1/2
 	eta = .1
 	L = 1 + 2*eta
 	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
@@ -31,6 +31,7 @@ def Error(Ne, p):
 	qdf = QDFactors(tfes, quad, psi_ex)
 	ldg = LDGVEF(sfes, vfes, qdf, sigma_t, sigma_s, source)
 	sip = SIPVEF(sfes, qdf, sigma_t, sigma_s, source)
+	br2 = BR2VEF(sfes, qdf, sigma_t, sigma_s, source)
 	sweeper = DirectSweeper(tfes, quad, sigma_t, sigma_s, source, psi_ex, False)
 
 	psi = TVector(tfes, quad)
@@ -48,9 +49,9 @@ def Error(Ne, p):
 		norm = np.linalg.norm(f)
 
 	# phi.data = optimize.anderson(npi.F, np.ones(sfes.Nu), callback=cb, f_tol=1e-10)
-	fpi = FixedPointIteration(npi.F, 1e-9, 25, True)
-	# phi.data = fpi.Solve(np.ones(sfes.Nu))
-	phi.data = optimize.newton_krylov(npi.F, np.ones(sfes.Nu), callback=cb, f_tol=1e-10, maxiter=25)
+	fpi = FixedPointIteration(npi.F, 1e-10, 25, True)
+	phi.data = fpi.Solve(np.ones(sfes.Nu))
+	# phi.data = optimize.newton_krylov(npi.F, np.ones(sfes.Nu), callback=cb, f_tol=1e-10, maxiter=25)
 	print('it = {}, norm = {:.3e}'.format(it, norm))
 	# x,subel = phi.EvalSubEl(20)
 	# plt.plot(x,subel)
@@ -58,7 +59,7 @@ def Error(Ne, p):
 	# plt.show()
 	return phi.L2Error(phi_ex, 2*p+2)
 
-Ne = 25
+Ne = 10
 p = 2
 E1 = Error(Ne, p)
 E2 = Error(2*Ne, p)
