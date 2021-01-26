@@ -379,11 +379,44 @@ def FullLiftedLDGVEF(Ne, p):
 	phi.data = optimize.anderson(npi.F, np.ones(sfes.Nu), maxiter=25, f_tol=1e-10)
 	return phi.L2Error(phi_ex, 2*p+2)
 
+def FullBR2VEF(Ne, p):
+	xe = np.linspace(0,1,Ne+1)
+	sfes = L2Space(xe, LegendreBasis(p))
+	tfes = L2Space(xe, LegendreBasis(p))
+	quad = LegendreQuad(6)
+
+	alpha = 1 
+	beta = .1
+	gamma = 1
+	delta = 1
+	eta = .1
+	L = 1 + 2*eta
+	psi_ex = lambda x, mu: .5*(alpha*np.sin(np.pi*(x+eta)/L) 
+		+ beta*mu*x*(1-x) + gamma*mu**2*np.sin(2*np.pi*x) + delta)
+	phi_ex = lambda x: alpha*np.sin(np.pi*(x+eta)/L) + gamma/3*np.sin(2*np.pi*x) + delta
+	sigma_t = lambda x: 1 
+	sigma_s = lambda x: .1
+	sigma_a = lambda x: sigma_t(x) - sigma_s(x) 
+	source = lambda x, mu: .5*(mu*alpha*np.pi/L*np.cos(np.pi*(x+eta)/L) + beta*mu**2*(1-2*x) 
+		+ gamma*mu**3*2*np.pi*np.cos(2*np.pi*x)) + sigma_t(x)*psi_ex(x,mu) - sigma_s(x)/2*phi_ex(x)
+
+	qdf = QDFactors(tfes, quad, psi_ex)
+	br2 = BR2VEF(sfes, qdf, sigma_t, sigma_s, source)
+	sweeper = DirectSweeper(tfes, quad, sigma_t, sigma_s, source, psi_ex)
+
+	psi = TVector(tfes, quad)
+	psi.Project(lambda x, mu: 1)
+	npi = NPI(sweeper, br2, sfes, psi)
+	phi = GridFunction(sfes)
+
+	phi.data = optimize.anderson(npi.F, np.ones(sfes.Nu), maxiter=25, f_tol=1e-10)
+	return phi.L2Error(phi_ex, 2*p+2)
+
 Ne = 10
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
 @pytest.mark.parametrize('solver', [H1Diffusion, BR2Diffusion, Transport, 
 	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
-	FullVEFH2, OnlySIPVEF, FullSIPVEF, FullLDGVEF, FullLiftedLDGVEF])
+	FullVEFH2, OnlySIPVEF, FullSIPVEF, FullLDGVEF, FullLiftedLDGVEF, FullBR2VEF])
 def test_ooa(solver, p):
 	with warnings.catch_warnings():
 		warnings.filterwarnings('ignore', category=PendingDeprecationWarning)

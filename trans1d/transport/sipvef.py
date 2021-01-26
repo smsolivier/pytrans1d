@@ -74,37 +74,34 @@ def VEFBR2Integrator(face_t, c):
 	kappa = c[2] 
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
+	bfac = 1 if face_t.boundary else .5 
 	X1 = face_t.el1.Transform(xi1)
 	X2 = face_t.el2.Transform(xi2)
 	sigma1 = sigma_t(X1)
 	sigma2 = sigma_t(X2) 
 	s1 = face_t.el1.CalcShape(xi1)
 	s2 = face_t.el2.CalcShape(xi2)
-	jump = np.concatenate((s1, -s2))
+	gs1 = face_t.el1.CalcPhysGradShape(xi1)
+	gs2 = face_t.el2.CalcPhysGradShape(xi2)
+	sj = np.concatenate((s1, -s2))
+	gsa = np.concatenate((gs1/sigma1, gs2/sigma2)) * bfac 
 
-	Eu = qdf.EvalFactorBdr(face_t)
 	E1 = qdf.EvalFactor(face_t.el1, xi1)
 	E2 = qdf.EvalFactor(face_t.el2, xi2)
-	Es = E1 if face_t.el1.ElNo < face_t.el2.ElNo else E2 
 	dE1 = qdf.EvalFactorDeriv(face_t.el1, xi1)
 	dE2 = qdf.EvalFactorDeriv(face_t.el2, xi2)
-	dEs = dE1 if face_t.el1.ElNo < face_t.el2.ElNo else dE2 
-	gs1 = face_t.el1.CalcPhysGradShape(xi1)*Es
-	gs2 = face_t.el2.CalcPhysGradShape(xi2)*Es
-	sd1 = s1*dEs
-	sd2 = s2*dEs
-	avg = np.concatenate(((gs1+sd1)/sigma1, (gs2+sd2)/sigma2)) * (1 if face_t.boundary else .5) * face_t.nor
-	jga = np.outer(jump, avg)
+	Eavg = np.concatenate(( (E1*gs1 + dE1*s1)/sigma1, (E2*gs2 + dE2*s2)/sigma2 )) * bfac * face_t.nor 
+	Ejump = np.concatenate((E1*s1, -E2*s2)) * face_t.nor 
 
 	a = np.concatenate((s1, s2)) * (1 if face_t.boundary else .5) 
-	B = -np.outer(a,jump)
+	B = -np.outer(a,sj)
 
 	m = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
 	minv = np.linalg.inv(m) 
 	Minv = np.block([[minv,0*minv], [0*minv,minv]])
 	br = kappa*np.linalg.multi_dot([B.T, Minv, B])
 
-	return br - jga - jga.T
+	return br - np.outer(sj, Eavg) - np.outer(gsa, Ejump)
 
 def SourceSIP(face_t, c):
 	xi1 = face_t.IPTrans(0)
