@@ -41,6 +41,33 @@ def VEFSIPIntegrator(face_t, c):
 	pen = np.outer(jump, jump)*kappa/h
 	return -elmat - elmat.T + pen  
 
+def VEFSIPIntegratorNew(face_t, c):
+	sigma_t = c[0]
+	qdf = c[1]
+	kappa = c[2] 
+	xi1 = face_t.IPTrans(0)
+	xi2 = face_t.IPTrans(1)
+	bfac = 1 if face_t.boundary else .5 
+	X1 = face_t.el1.Transform(xi1)
+	X2 = face_t.el2.Transform(xi2)
+	sigma1 = sigma_t(X1)
+	sigma2 = sigma_t(X2) 
+	s1 = face_t.el1.CalcShape(xi1)
+	s2 = face_t.el2.CalcShape(xi2)
+	gs1 = face_t.el1.CalcPhysGradShape(xi1)
+	gs2 = face_t.el2.CalcPhysGradShape(xi2)
+	sj = np.concatenate((s1, -s2))
+	gsa = np.concatenate((gs1/sigma1, gs2/sigma2)) * bfac 
+
+	E1 = qdf.EvalFactor(face_t.el1, xi1)
+	E2 = qdf.EvalFactor(face_t.el2, xi2)
+	dE1 = qdf.EvalFactorDeriv(face_t.el1, xi1)
+	dE2 = qdf.EvalFactorDeriv(face_t.el2, xi2)
+	Eavg = np.concatenate(( (E1*gs1 + dE1*s1)/sigma1, (E2*gs2 + dE2*s2)/sigma2 )) * bfac * face_t.nor 
+	Ejump = np.concatenate((E1*s1, -E2*s2)) * face_t.nor 
+
+	return -np.outer(sj, Eavg) - np.outer(gsa, Ejump) + kappa*np.outer(sj, sj)/face_t.el1.h
+
 def VEFBR2Integrator(face_t, c):
 	sigma_t = c[0]
 	qdf = c[1]
@@ -132,7 +159,7 @@ class SIPVEF:
 		self.qdf.Compute(psi)
 		p = self.fes.basis.p 
 		K = Assemble(self.fes, VEFPoissonIntegrator, [self.qdf, self.sigma_t], 2*p+1)
-		F = FaceAssemble(self.fes, VEFSIPIntegrator, [self.sigma_t, self.qdf, (p+1)**2]) \
+		F = FaceAssemble(self.fes, VEFSIPIntegratorNew, [self.sigma_t, self.qdf, (p+1)**2]) \
 			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf)
 
 		M = K + self.Ma + F 

@@ -252,7 +252,7 @@ def OnlySIPVEF(Ne, p):
 	quad = LegendreQuad(N)
 	xe = np.linspace(0,1,Ne+1)
 	fes = L2Space(xe, LegendreBasis(p))
-	tfes = L2Space(xe, LobattoBasis(p))
+	tfes = L2Space(xe, LegendreBasis(p))
 
 	alpha = 1 
 	beta = .1
@@ -282,12 +282,12 @@ def FullSIPVEF(Ne, p):
 	quad = LegendreQuad(N)
 	xe = np.linspace(0,1,Ne+1)
 	fes = L2Space(xe, LegendreBasis(p))
-	tfes = L2Space(xe, LobattoBasis(p+1))
+	tfes = L2Space(xe, LegendreBasis(p))
 
 	alpha = 1 
 	beta = .1
 	gamma = 1
-	delta = 10
+	delta = 1/2
 	eta = .1
 	eps = 1e-1
 	L = 1 + 2*eta
@@ -346,7 +346,7 @@ def FullLDGVEF(Ne, p):
 	phi.data = optimize.anderson(npi.F, np.ones(sfes.Nu), maxiter=25, f_tol=1e-10)
 	return phi.L2Error(phi_ex, 2*p+2)
 
-Ne = 7
+Ne = 10
 @pytest.mark.parametrize('p', [1, 2, 3, 4])
 @pytest.mark.parametrize('solver', [H1Diffusion, BR2Diffusion, Transport, 
 	S2SATransport, P1SATransport, FullVEF, FullVEFH, 
