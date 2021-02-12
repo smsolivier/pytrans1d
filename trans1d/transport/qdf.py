@@ -160,6 +160,14 @@ class QDFactors:
 
 		return abs(t/b) 
 
+	def EvalAlpha(self, el, xi):
+		alpha = 0 
+		for a in range(self.N):
+			psi_at_ip = self.psi.GetAngle(a).Interpolate(el.ElNo, xi)
+			alpha += self.w[a] * self.mu[a] * abs(self.mu[a]) * psi_at_ip
+
+		return alpha / 2
+
 	def EvalJinBdr(self, face_t):
 		xi1 = face_t.IPTrans(0)
 		x = face_t.el1.Transform(xi1)
@@ -170,6 +178,16 @@ class QDFactors:
 
 		return Jin
 
+	def EvalJoutBdr(self, face):
+		xi1 = face.IPTrans(0)
+		Jout = 0 
+		for a in range(self.N):
+			if (self.mu[a]*face.nor<0):
+				psi_at_ip = self.psi.GetAngle(a).Interpolate(face.el1.ElNo, xi1)
+				Jout += face.nor * self.mu[a] * self.w[a] * psi_at_ip
+
+		return Jout 
+
 	def EvalPhiInBdr(self, face_t):
 		xi1 = face_t.IPTrans(0)
 		x = face_t.el1.Transform(xi1)
@@ -179,3 +197,24 @@ class QDFactors:
 				phi_in += self.w[a] * self.psi_in(x,self.mu[a])
 
 		return phi_in
+
+	def EvalPinBdr(self, face):
+		xi1 = face.IPTrans(0)
+		x = face.el1.Transform(xi1)
+		Pin = 0 
+		for a in range(self.N):
+			if (self.mu[a]*face.nor<0):
+				Pin += face.nor * self.mu[a]**2 * self.psi_in(x, self.mu[a])
+
+		return Pin 
+
+	def EvalPoutBdr(self, face):
+		xi1 = face.IPTrans(0)
+		Pout = 0 
+		for a in range(self.N):
+			if (self.mu[a]*face.nor>0):
+				psi_at_ip = self.psi.GetAngle(a).Interpolate(face.el1.ElNo, xi1)
+				Pout += face.nor * self.mu[a]**2 * psi_at_ip
+
+		return Pout
+
