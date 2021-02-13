@@ -48,10 +48,13 @@ def VEFSIPIntegratorNew(face_t, c):
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
 	bfac = 1 if face_t.boundary else .5 
-	X1 = face_t.el1.Transform(xi1)
-	X2 = face_t.el2.Transform(xi2)
+	X1 = face_t.el1.Transform(0)
+	X2 = face_t.el2.Transform(0) 
 	sigma1 = sigma_t(X1)
 	sigma2 = sigma_t(X2) 
+	sigma_h = 1/sigma1 + 1/sigma2
+	w1 = sigma2 / (sigma1 + sigma2)
+	w2 = sigma1 / (sigma1 + sigma2)
 	s1 = face_t.el1.CalcShape(xi1)
 	s2 = face_t.el2.CalcShape(xi2)
 	gs1 = face_t.el1.CalcPhysGradShape(xi1)
@@ -59,6 +62,8 @@ def VEFSIPIntegratorNew(face_t, c):
 	sj = np.concatenate((s1, -s2))
 	gsa = np.concatenate((gs1/sigma1, gs2/sigma2)) * bfac 
 
+	Eu = qdf.EvalFactorBdr(face_t)
+	dEu = qdf.EvalFactorDerivBdr(face_t)
 	E1 = qdf.EvalFactor(face_t.el1, xi1)
 	E2 = qdf.EvalFactor(face_t.el2, xi2)
 	dE1 = qdf.EvalFactorDeriv(face_t.el1, xi1)
@@ -66,7 +71,28 @@ def VEFSIPIntegratorNew(face_t, c):
 	Eavg = np.concatenate(( (E1*gs1 + dE1*s1)/sigma1, (E2*gs2 + dE2*s2)/sigma2 )) * bfac * face_t.nor 
 	Ejump = np.concatenate((E1*s1, -E2*s2)) * face_t.nor 
 
-	return -np.outer(sj, Eavg) - np.outer(gsa, Ejump) + kappa*np.outer(sj, sj)/face_t.el1.h
+	return -np.outer(sj, Eavg) - np.outer(gsa, Ejump) + kappa*np.outer(sj, sj)/face_t.el1.h*sigma_h
+
+def VEFEllIntegrator(face, c):
+	qdf = c[0] 
+	sigma_t = c[1] 
+	xi1 = face.IPTrans(0) 
+	xi2 = face.IPTrans(1)
+	bfac = 0 if face.boundary else .5
+	gs1 = face.el1.CalcPhysGradShape(xi1)
+	gs2 = face.el2.CalcPhysGradShape(xi2)
+	gj = np.concatenate((gs1, -gs2))
+	Ehat = qdf.EvalFactorBdr(face)
+	E1 = qdf.EvalFactor(face.el1, xi1)
+	E2 = qdf.EvalFactor(face.el2, xi2)
+	X1 = face.el1.Transform(0)
+	X2 = face.el2.Transform(0)
+	sigma1 = sigma_t(X1)
+	sigma2 = sigma_t(X2)
+	s1 = face.el1.CalcShape(xi1)
+	s2 = face.el2.CalcShape(xi2)
+	sa = np.concatenate(((Ehat - E1)/sigma1*s1, (Ehat - E2)/sigma2*s2)) * face.nor * bfac 
+	return np.outer(gj, sa)
 
 def VEFBR2Integrator(face_t, c):
 	sigma_t = c[0]
@@ -75,8 +101,8 @@ def VEFBR2Integrator(face_t, c):
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
 	bfac = 1 if face_t.boundary else .5 
-	X1 = face_t.el1.Transform(xi1)
-	X2 = face_t.el2.Transform(xi2)
+	X1 = face_t.el1.Transform(0)
+	X2 = face_t.el2.Transform(0)
 	sigma1 = sigma_t(X1)
 	sigma2 = sigma_t(X2) 
 	s1 = face_t.el1.CalcShape(xi1)
@@ -101,19 +127,25 @@ def VEFBR2Integrator(face_t, c):
 	Minv = np.block([[minv,0*minv], [0*minv,minv]])
 	br = kappa*np.linalg.multi_dot([B.T, Minv, B])
 
-	return br - np.outer(sj, Eavg) - np.outer(gsa, Ejump)
+	sigma_h = 1/sigma1 + 1/sigma2
+	return br*sigma_h - np.outer(sj, Eavg) - np.outer(gsa, Ejump)
 
 def SourceSIP(face_t, c):
+	Q1 = c[0]
+	sigma_t = c[1]
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
-	X = face_t.el1.Transform(xi1)
+	X1 = face_t.el1.Transform(xi1)
+	X2 = face_t.el2.Transform(xi2)
+	sigma1 = sigma_t(face_t.el1.Transform(0))
+	sigma2 = sigma_t(face_t.el2.Transform(0))
 	s1 = face_t.el1.CalcShape(xi1)
 	s2 = face_t.el2.CalcShape(xi2)
 	if (face_t.boundary):
 		jump = s1 
 	else:
 		jump = np.concatenate((s1, -s2))
-	return -jump * c(X) * face_t.nor 
+	return -jump * .5*Q1(X1)*(1/sigma1 + 1/sigma2) * face_t.nor 
 
 def SIPInflow(face_t, qdf):
 	assert(face_t.boundary)
@@ -134,8 +166,8 @@ def LDGLiftIntegrator(face_t, c):
 	qdf = c[1]
 	xi1 = face_t.IPTrans(0)
 	xi2 = face_t.IPTrans(1)
-	X1 = face_t.el1.Transform(xi1)
-	X2 = face_t.el2.Transform(xi2)
+	X1 = face_t.el1.Transform(0)
+	X2 = face_t.el2.Transform(0)
 	sigma1 = sigma_t(X1)
 	sigma2 = sigma_t(X2) 
 	s1 = face_t.el1.CalcShape(xi1)
@@ -143,13 +175,17 @@ def LDGLiftIntegrator(face_t, c):
 	jump = np.concatenate((s1, -s2))
 	avg = np.concatenate((s1, s2)) * (1 if face_t.boundary else .5) * face_t.nor 
 
+	Eu = qdf.EvalFactorBdr(face_t)
 	E1 = qdf.EvalFactor(face_t.el1, xi1)
 	E2 = qdf.EvalFactor(face_t.el2, xi2)
-	Ejump = np.concatenate((s1*E1/sigma1, -s2*E2/sigma2)) 
+	sigmau = (sigma1 + sigma2)/2
+	Ejump = np.concatenate((s1*Eu/sigmau, -s2*Eu/sigmau)) 
 
-	m = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
-	minv = np.linalg.inv(m) 
-	Minv = np.block([[minv,0*minv], [0*minv,minv]])
+	m1 = MassIntegrator(face_t.el1, lambda x: 1, 2*face_t.el1.basis.p+1)
+	m2 = MassIntegrator(face_t.el2, lambda x: 1, 2*face_t.el2.basis.p+1)
+	minv1 = np.linalg.inv(m1) 
+	minv2 = np.linalg.inv(m2) 
+	Minv = np.block([[minv1,np.zeros((m1.shape[0],m2.shape[1]))], [np.zeros((m2.shape[0], m1.shape[1])),minv2]])
 	ldg = np.linalg.multi_dot([np.outer(jump, avg), Minv, np.outer(avg, Ejump)])
 	return ldg 
 
@@ -172,7 +208,7 @@ class SIPVEF:
 			Q1 += AssembleRHS(self.fes, GradDomainIntegrator, 
 				lambda x: source(x,mu)/sigma_t(x), 2*p+1)*mu*quad.w[a]
 			Q1 += FaceAssembleRHS(self.fes, SourceSIP, 
-				lambda x: source(x,mu)/sigma_t(x))*mu*quad.w[a]
+				[lambda x: source(x,mu), sigma_t])*mu*quad.w[a]
 
 		self.Q = Q0 + Q1 + BdrFaceAssembleRHS(self.fes, SIPInflow, self.qdf)
 
@@ -181,7 +217,8 @@ class SIPVEF:
 		p = self.fes.basis.p 
 		K = Assemble(self.fes, VEFPoissonIntegrator, [self.qdf, self.sigma_t], 2*p+1)
 		F = FaceAssemble(self.fes, VEFSIPIntegratorNew, [self.sigma_t, self.qdf, (p+1)**2]) \
-			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf)
+			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf) 
+		# F += FaceAssemble(self.fes, VEFEllIntegrator, [self.qdf, self.sigma_t])
 
 		M = K + self.Ma + F 
 		phi = GridFunction(self.fes)
@@ -212,11 +249,13 @@ class LiftedLDGVEF(SIPVEF):
 		self.qdf.Compute(psi)
 		p = self.fes.basis.p 
 		K = Assemble(self.fes, VEFPoissonIntegrator, [self.qdf, self.sigma_t], 2*p+1)
-		F = FaceAssemble(self.fes, VEFSIPIntegratorNew, [self.sigma_t, self.qdf, self.fes.Ne*(p+1)**2]) \
-			+ FaceAssemble(self.fes, LDGLiftIntegrator, [self.sigma_t, self.qdf]) \
+		F = FaceAssemble(self.fes, VEFSIPIntegratorNew, [self.sigma_t, self.qdf, (p+1)**2]) \
 			+ BdrFaceAssemble(self.fes, SIPBC, self.qdf)
+		B = MixFaceAssemble(self.fes, self.fes, MixJumpAvgIntegrator, 1) 
+		Minv = Assemble(self.fes, InverseMassIntegrator, self.sigma_t, 2*self.fes.basis.p+1)
+		R = B * Minv * B.T 
 
-		A = K + self.Ma + F
+		A = K + self.Ma + F - R 
 		phi = GridFunction(self.fes)
 		phi.data = spla.spsolve(A, self.Q)
 		return phi 
