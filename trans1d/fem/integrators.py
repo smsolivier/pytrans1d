@@ -82,6 +82,19 @@ def MixMassIntegrator(el1, el2, c, qorder):
 
 	return elmat 
 
+def MixMassIntegratorLumped(el1, el2, c, qorder):
+	ip, w = quadrature.GetLumped(el2)
+	elmat = np.zeros((el1.Nn, el2.Nn))
+
+	for n in range(len(w)):
+		s1 = el1.CalcShape(ip[n]) 
+		s2 = el2.CalcShape(ip[n]) 
+		X = el1.Transform(ip[n]) 
+		coef = c(X)
+		linalg.AddOuter(coef*w[n]*el1.Jacobian(ip[n]), s1, s2, elmat)
+
+	return elmat 
+
 def WeakPoissonIntegrator(el, c, qorder):
 	ip, w = quadrature.Get(qorder)
 	elmat = np.zeros((el.Nn, el.Nn))
@@ -314,6 +327,14 @@ def GradDomainIntegrator(el, c, qorder):
 def Assemble(space, integrator, c, qorder):
 	coo = COOBuilder(space.Nu, space.Nu)
 	for e in range(space.Ne):
+		elmat = integrator(space.el[e], c, qorder)
+		coo[space.dofs[e], space.dofs[e]] = elmat 
+
+	return coo.Get()
+
+def AssembleInterior(space, integrator, c, qorder):
+	coo = COOBuilder(space.Nu, space.Nu)
+	for e in range(1, space.Ne-1):
 		elmat = integrator(space.el[e], c, qorder)
 		coo[space.dofs[e], space.dofs[e]] = elmat 
 

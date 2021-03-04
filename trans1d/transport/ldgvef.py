@@ -82,6 +82,21 @@ class NPI:
 		new = self.vef.Mult(self.psi)
 		return phi - new.data 
 
+def PenaltyIntegrator(face, c):
+	kappa = c[0]
+	sigma_t = c[1] 
+	xi1 = face.IPTrans(0)
+	xi2 = face.IPTrans(1)
+	X1 = face.el1.Transform(0)
+	X2 = face.el2.Transform(0)
+	s1 = face.el1.CalcShape(xi1)
+	s2 = face.el2.CalcShape(xi2)
+	j = np.concatenate((s1, -s2))
+	sigma1 = sigma_t(X1)
+	sigma2 = sigma_t(X2)
+	sigmah = 1/sigma1 + 1/sigma2 
+	return sigmah * np.outer(j, j) * kappa / face.el1.h 
+
 class LDGVEF:
 	def __init__(self, sfes, vfes, qdf, sigma_t, sigma_s, source):
 		self.sfes = sfes
@@ -99,7 +114,7 @@ class LDGVEF:
 
 		self.Mtinv = Assemble(self.vfes, InverseMassIntegrator, sigma_t, 2*vfes.basis.p+1)
 		self.Ma = Assemble(self.sfes, MassIntegrator, lambda x: sigma_t(x)-sigma_s(x), 2*sfes.basis.p+1) \
-			+ FaceAssemble(self.sfes, JumpJumpIntegrator, sfes.Ne*(sfes.basis.p+1)**2)
+			+ FaceAssemble(self.sfes, PenaltyIntegrator, [(sfes.basis.p+1)**2, sigma_t])
 		self.D = MixAssemble(self.sfes, self.vfes, WeakMixDivIntegrator, 1, 2*vfes.basis.p+1) \
 			+ MixFaceAssemble(self.sfes, self.vfes, MixJumpAvgIntegrator, 1) 
 
@@ -109,11 +124,11 @@ class LDGVEF:
 			+ MixFaceAssembleAll(self.vfes, self.sfes, MixVEFJumpAvg, self.qdf)
 		B = BdrFaceAssemble(self.sfes, MLBdrTerm, self.qdf)
 		Ma = self.Ma + B
-		S = Ma - self.D*self.Mtinv*G 
-		b = self.Q0 - self.D*self.Mtinv*self.Q1 
+		self.K = Ma - self.D*self.Mtinv*G 
+		self.Q = self.Q0 - self.D*self.Mtinv*self.Q1 
 		phi = GridFunction(self.sfes)
-		phi.data = spla.spsolve(S, b)
-		r = np.linalg.norm(S*phi.data - b)
+		phi.data = spla.spsolve(self.K, self.Q)
+		r = np.linalg.norm(self.K*phi.data - self.Q)
 		if (r>1e-10):
 			warnings.warn('LDGVEF residual = {:.3e}'.format(r))
 		return phi 

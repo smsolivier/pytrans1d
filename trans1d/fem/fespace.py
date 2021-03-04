@@ -250,7 +250,18 @@ class GridFunction:
 			for n in range(len(w)):
 				l2 += self.InterpolateGrad(e, ip[n])**2 * w[n] * el.Jacobian(ip[n]) 
 
-		return np.sqrt(l2) 		
+		return np.sqrt(l2) 
+
+	def Integrate(self, qorder):
+		from .quadrature import quadrature
+		i = 0 
+		ip, w = quadrature.Get(qorder)
+		for e in range(self.space.Ne):
+			el = self.space.el[e]
+			for n in range(len(w)):
+				i += self.Interpolate(e, ip[n]) * w[n] * el.Jacobian(ip[n]) 
+
+		return i 
 
 	def __rmul__(self, A):
 		return A*self.data 

@@ -80,11 +80,12 @@ def FullVEF(Ne, p):
 
 	sweep = DirectSweeper(tspace, quad, sigma_t, sigma_s, Q, psi_ex, False)
 	block = BlockLDU(1e-12, 100, 1, False)
-	vef = VEF(phi_space, J_space, sweep, None, True)
+	vef = VEF(phi_space, J_space, sweep, None, False)
 	psi = TVector(tspace, quad)
 	phi = vef.SourceIteration(psi)
+	sphi = vef.ComputeScalarFlux(psi)
 
-	err = phi.L2Error(phi_ex, 2*p+1)
+	err = phi.L2Error(phi_ex, 2*p+2)
 	return err 
 
 def FullVEFH(Ne, p):
